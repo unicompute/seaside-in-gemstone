@@ -1,0 +1,14 @@
+{
+	"category" : "MonticelloFileTree-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"initializers" ],
+	"name" : "MCFileTreePackageStructureStWriter",
+	"pools" : [
+		 ],
+	"super" : "MCStWriter",
+	"type" : "normal" }

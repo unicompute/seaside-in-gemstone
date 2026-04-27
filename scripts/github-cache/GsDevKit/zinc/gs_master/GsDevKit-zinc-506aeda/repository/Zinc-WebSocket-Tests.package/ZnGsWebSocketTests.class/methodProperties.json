@@ -1,0 +1,8 @@
+{
+	"class" : {
+		"shouldInheritSelectors" : "dkh 01/14/2015 14:47" },
+	"instance" : {
+		"createGemServerMap:to:" : "dkh 01/14/2015 18:01",
+		"delegateClass" : "dkh 01/14/2015 14:09",
+		"testChatroom" : "dkh 01/14/2015 18:01",
+		"webSocketClass" : "dkh 01/14/2015 14:11" } }

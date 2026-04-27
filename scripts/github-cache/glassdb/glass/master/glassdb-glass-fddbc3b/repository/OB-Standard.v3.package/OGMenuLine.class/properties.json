@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-GemStone",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OGMenuLine",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

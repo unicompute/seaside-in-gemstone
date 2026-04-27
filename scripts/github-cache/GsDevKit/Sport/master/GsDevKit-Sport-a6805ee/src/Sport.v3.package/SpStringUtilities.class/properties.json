@@ -1,0 +1,14 @@
+{
+	"category" : "Sport",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "SpStringUtilities",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

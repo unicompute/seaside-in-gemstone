@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-REST-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "dkh 12/04/2014 06:20",
+	"instvars" : [
+		"client" ],
+	"name" : "ZnAbstractExampleSumRestCallTest",
+	"pools" : [
+		 ],
+	"super" : "TestCase",
+	"type" : "normal" }

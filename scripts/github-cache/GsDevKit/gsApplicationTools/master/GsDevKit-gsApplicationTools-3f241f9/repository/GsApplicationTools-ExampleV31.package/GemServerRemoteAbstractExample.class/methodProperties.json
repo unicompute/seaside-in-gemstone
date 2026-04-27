@@ -1,0 +1,15 @@
+{
+	"class" : {
+		"serverClass" : "dkh 12/23/2014 13:29" },
+	"instance" : {
+		"errorLog" : "dkh 01/02/2015 15:43",
+		"inProcess" : "dkh 12/23/2014 13:31",
+		"initErrorLog" : "dkh 01/02/2015 15:39",
+		"initialize" : "dkh 01/02/2015 17:18",
+		"logStack:titled:inTransactionDo:" : "dkh 01/02/2015 15:42",
+		"port" : "dkh 01/06/2015 16:05",
+		"queue" : "dkh 12/22/2014 19:48",
+		"queueCounterValue" : "dkh 12/22/2014 19:48",
+		"restart" : "dkh 12/24/2014 16:25",
+		"start" : "dkh 01/06/2015 15:51",
+		"stop" : "dkh 01/02/2015 17:16" } }

@@ -1,0 +1,10 @@
+{
+	"class" : {
+		"host:port:" : "DataCurator 07/13/2010 13:06",
+		"hostName:port:" : "OttoBehrens 05/13/2005 14:15",
+		"ipAddressForHostName:timeout:" : "OttoBehrens 05/13/2005 14:15" },
+	"instance" : {
+		"host:port:" : "DataCurator 09/16/2008 16:35",
+		"hostAddress" : "DataCurator 09/16/2008 16:35",
+		"hostAddressString" : "DataCurator 09/16/2008 16:35",
+		"portNumber" : "DataCurator 09/16/2008 16:35" } }

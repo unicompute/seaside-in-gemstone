@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-HTTP-Logging",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "ZnObjectLogLogger",
+	"pools" : [
+		 ],
+	"super" : "ZnLogListener",
+	"type" : "normal" }

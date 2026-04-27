@@ -1,0 +1,14 @@
+{
+	"commentStamp" : "pmm 2/18/2011 22:57",
+	"super" : "WADocument",
+	"category" : "Seaside-Core-Document",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"urlEncoder",
+		"xmlEncoder"
+	],
+	"name" : "WAXmlDocument",
+	"type" : "normal"
+}

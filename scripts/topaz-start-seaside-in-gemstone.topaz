@@ -1,0 +1,29 @@
+! Start the GemStone Seaside web server for SeasideInGemStone from Topaz.
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-start-seaside-in-gemstone.topaz
+! Then open:
+!   http://localhost:9001/sig
+
+! set user SystemUser pass swordfish
+! set gemstone gs64stone
+! set gemnetid !#netldi:gs64ldi!gemnetobject
+
+! login
+
+run
+| appClass |
+appClass := System myUserProfile objectNamed: 'SigExplorerApplication'.
+appClass ifNil: [
+	Error signal: 'SigExplorerApplication is not visible to the current user. Load the project with scripts/topaz-load-seaside-in-gemstone-rowan.topaz as SystemUser first.' ].
+appClass initializeApplication.
+%
+
+run
+| gemServerClass |
+gemServerClass := System myUserProfile objectNamed: 'WAGemStoneRunSeasideGems'.
+gemServerClass ifNil: [
+	Error signal: 'WAGemStoneRunSeasideGems is not visible to the current user. Ensure Seaside loaded successfully before starting the server.' ].
+gemServerClass startGemServerOn: 9001.
+%

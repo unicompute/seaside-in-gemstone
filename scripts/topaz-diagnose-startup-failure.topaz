@@ -1,0 +1,79 @@
+! Diagnose the actual MessageNotUnderstood raised while starting the Seaside Gem.
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-diagnose-startup-failure.topaz
+
+! set user SystemUser pass swordfish
+! set gems gs64stone
+! set gemnetid !#netldi:gs64ldi!gemnetobject
+
+! login
+
+run
+String streamContents: [ :stream |
+	| lookup |
+	lookup := [ :globalName | System myUserProfile objectNamed: globalName ].
+	stream
+		nextPutAll: 'System stoneName = ';
+		nextPutAll: System stoneName printString;
+		cr;
+		nextPutAll: 'WAGemStoneRunSeasideGems = ';
+		nextPutAll: ((lookup value: 'WAGemStoneRunSeasideGems') printString);
+		cr;
+		nextPutAll: 'SigExplorerApplication = ';
+		nextPutAll: ((lookup value: 'SigExplorerApplication') printString);
+		cr;
+		nextPutAll: 'MCRepositoryGroup = ';
+		nextPutAll: ((lookup value: 'MCRepositoryGroup') printString);
+		cr;
+		nextPutAll: 'MetacelloProjectRegistration = ';
+		nextPutAll: ((lookup value: 'MetacelloProjectRegistration') printString);
+		cr ]
+%
+
+run
+System gemConfigurationAt: #GemExceptionSignalCapturesStack put: true.
+'GemExceptionSignalCapturesStack enabled'
+%
+
+run
+[ 
+| appClass gemServerClass |
+appClass := System myUserProfile objectNamed: 'SigExplorerApplication'.
+gemServerClass := System myUserProfile objectNamed: 'WAGemStoneRunSeasideGems'.
+appClass ifNil: [ Error signal: 'SigExplorerApplication is not visible to the current user.' ].
+gemServerClass ifNil: [ Error signal: 'WAGemStoneRunSeasideGems is not visible to the current user.' ].
+appClass initializeApplication.
+gemServerClass startGemServerOn: 9001.
+'startup succeeded'
+]
+	on: MessageNotUnderstood
+	do: [ :ex |
+		String streamContents: [ :stream |
+			stream
+				nextPutAll: 'description = ';
+				nextPutAll: ex description;
+				cr;
+				nextPutAll: 'exceptionClass = ';
+				nextPutAll: ex class printString;
+				cr;
+				nextPutAll: 'receiverClass = ';
+				nextPutAll: ex receiver class printString;
+				cr;
+				nextPutAll: 'receiver = ';
+				nextPutAll: ex receiver printString;
+				cr;
+				nextPutAll: 'selector = ';
+				nextPutAll: ex message selector printString;
+				cr;
+				nextPutAll: 'arguments = ';
+				nextPutAll: ex message arguments printString;
+				cr;
+				nextPutAll: 'stackReport =';
+				cr;
+				nextPutAll: (ex stackReport ifNil: [ 'nil' ]) ] ]
+%
+
+logout
+quit

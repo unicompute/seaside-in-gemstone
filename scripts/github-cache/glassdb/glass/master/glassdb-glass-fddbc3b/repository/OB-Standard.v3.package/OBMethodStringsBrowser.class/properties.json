@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Browsers",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBMethodStringsBrowser",
+	"pools" : [
+		 ],
+	"super" : "OBListBrowser",
+	"type" : "normal" }

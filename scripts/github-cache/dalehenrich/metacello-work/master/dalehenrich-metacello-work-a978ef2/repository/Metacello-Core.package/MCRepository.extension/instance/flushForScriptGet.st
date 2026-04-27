@@ -1,0 +1,3 @@
+*metacello-core
+flushForScriptGet
+    "noop"

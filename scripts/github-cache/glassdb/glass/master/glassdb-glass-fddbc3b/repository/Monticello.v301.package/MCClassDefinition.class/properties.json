@@ -1,0 +1,20 @@
+{
+	"category" : "Monticello-Modeling",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "DataCurator 10/31/2011 15:32",
+	"instvars" : [
+		"name",
+		"superclassName",
+		"variables",
+		"category",
+		"type",
+		"comment",
+		"commentStamp" ],
+	"name" : "MCClassDefinition",
+	"pools" : [
+		 ],
+	"super" : "MCDefinition",
+	"type" : "normal" }

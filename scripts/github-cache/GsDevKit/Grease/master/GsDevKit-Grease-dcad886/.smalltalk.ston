@@ -1,0 +1,34 @@
+SmalltalkCISpec {
+  #loading : [
+    SCIMetacelloLoadSpec {
+      #baseline : 'Grease',
+      #directory : 'repository',
+      #load : [ 'Tests' ],
+      #useLatestMetacello : true, 
+      #platforms : [ #squeak ]
+    },
+    SCIMetacelloLoadSpec {
+      #baseline : 'Grease',
+      #directory : 'repository',
+      #load : [ 'Tests' ],
+      #platforms : [ #pharo ]
+    },
+    SCIMetacelloLoadSpec {
+      #baseline : 'Grease',
+      #directory : 'repository',
+      #onWarningLog : true,
+      #load : [ 'Tests' ],
+      #platforms : [ #gemstone ]
+    }
+  ],
+  #testing : {
+      #defaultTimeout : 30,
+			#include : {
+				#classes : [ #SentButNotImplementedTest , #UndefinedSymbolsTest ]
+			},
+      #coverage : {
+        #packages: [ 'Grease*' ],
+        #format: #lcov
+      }
+	}
+}

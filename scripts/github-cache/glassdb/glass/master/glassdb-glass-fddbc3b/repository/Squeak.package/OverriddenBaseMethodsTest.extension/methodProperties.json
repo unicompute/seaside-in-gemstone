@@ -1,0 +1,13 @@
+{
+	"class" : {
+		 },
+	"instance" : {
+		"baseOverridesSqueakCharacter:" : "DaleHenrichs 12/08/2010 17:00",
+		"baseOverridesSqueakCharacterCollection:" : "dkh 11/11/2011 15:02",
+		"baseOverridesSqueakDateAndTimeANSI:" : "dkh 11/11/2011 09:50",
+		"baseOverridesSqueakDateAndTimeANSIClass:" : "DaleHenrichs 10/25/2010 16:01",
+		"baseOverridesSqueakInteger:" : "DaleHenrichs 10/25/2010 16:01",
+		"baseOverridesSqueakInterval:" : "DaleHenrichs 10/25/2010 16:01",
+		"baseOverridesSqueakObject:" : "DaleHenrichs 10/25/2010 16:01",
+		"baseOverridesSqueakSequenceableCollection:" : "DaleHenrichs 10/25/2010 16:01",
+		"baseOverridesSqueakSymbol:" : "dkh 11/11/2011 09:50" } }

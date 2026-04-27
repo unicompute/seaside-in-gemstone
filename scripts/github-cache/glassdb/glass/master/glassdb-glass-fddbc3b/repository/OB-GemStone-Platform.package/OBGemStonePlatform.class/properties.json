@@ -1,0 +1,14 @@
+{
+	"category" : "OB-GemStone-Platform",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBGemStonePlatform",
+	"pools" : [
+		 ],
+	"super" : "OBPlatform",
+	"type" : "normal" }

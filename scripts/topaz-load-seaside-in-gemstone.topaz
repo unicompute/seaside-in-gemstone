@@ -1,0 +1,90 @@
+! Load SeasideInGemStone into a GemStone Seaside stone from Topaz.
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-load-seaside-in-gemstone.topaz
+
+! set user DataCurator pass swordfish
+! set gemstone gs64stone
+! Use a larger temp object cache for package loading/upgrade work.
+! The normal Seaside runtime config is too small for Metacello/Gofer loads.
+! set gemnetid !#netldi:gs64ldi!gemnetobject -T 200000
+
+! login
+
+run
+| registrationClass |
+registrationClass := Smalltalk at: #MetacelloProjectRegistration ifAbsent: [ nil ].
+registrationClass ifNotNil: [
+	MetacelloScriptEngine defaultRepositoryDescription: nil.
+	registrationClass resetRegistry.
+	registrationClass primeRegistryFromImage ].
+%
+
+run
+| group raw cleaned |
+group := Smalltalk at: #MCRepositoryGroup ifAbsent: [ nil ].
+group ifNotNil: [
+	group := group default.
+	raw := group instVarAt: 1.
+	raw == nil ifTrue: [ raw := OrderedCollection new ].
+	cleaned := raw reject: [ :each | each isNil ].
+	(raw == cleaned and: [ raw class == cleaned class ])
+		ifFalse: [ group instVarAt: 1 put: cleaned asOrderedCollection ] ].
+%
+
+run
+Gofer new
+	package: 'GsUpgrader-Core';
+	url: 'http://ss3.gemtalksystems.com/ss/gsUpgrader';
+	load.
+(Smalltalk at: #GsUpgrader) upgradeGrease.
+%
+
+run
+GsDeployer deploy: [
+	Metacello new
+		baseline: 'Seaside3';
+		repository: 'github://SeasideSt/Seaside:v3.5.x/repository';
+		onLock: [ :ex | ex honor ];
+		load: #('Core' 'Javascript' 'Zinc') ].
+%
+
+run
+MCRepositoryGroup
+	compile: 'repositories
+	| validRepositories |
+	validRepositories := OrderedCollection new.
+	(Array with: MCCacheRepository default), repositories do: [ :each |
+		(each ~~ nil and: [ each isValid ])
+			ifTrue: [ validRepositories add: each ] ].
+	^ validRepositories'
+	classified: 'accessing'.
+%
+
+run
+| tonelRepository tonelReader hasJsonParser |
+tonelRepository := Smalltalk at: #TonelRepository ifAbsent: [ nil ].
+tonelReader := Smalltalk at: #TonelReader ifAbsent: [ nil ].
+hasJsonParser := (Smalltalk at: #STONJSON ifAbsent: [ nil ]) notNil
+	or: [ (Smalltalk at: #NeoJSONReader ifAbsent: [ nil ]) notNil ].
+(tonelRepository notNil and: [ tonelReader notNil and: [ hasJsonParser ] ])
+	ifFalse: [
+		Error signal: 'This image cannot load tonel:/// repositories yet. Missing TonelRepository/TonelReader and STONJSON or NeoJSON. Bootstrap Rowan with scripts/topaz-bootstrap-rowan.topaz and then run scripts/topaz-load-seaside-in-gemstone-rowan.topaz, or load MonticelloTonel plus JSON support first.' ].
+'Tonel preflight passed'
+%
+
+run
+Metacello new
+	baseline: 'SeasideInGemStone';
+	repository: 'tonel:///Users/tariq/src/gemtools/seaside-in-gemstone/src';
+	onLock: [ :ex | ex honor ];
+	load.
+%
+
+run
+System commit.
+%
+
+logout
+quit

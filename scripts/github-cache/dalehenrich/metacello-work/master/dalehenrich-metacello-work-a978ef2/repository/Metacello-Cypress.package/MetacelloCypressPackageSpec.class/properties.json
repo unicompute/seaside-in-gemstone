@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "CyrilFerlicot 2/8/2018 15:55",
+	"super" : "MetacelloPackageSpec",
+	"category" : "Metacello-Cypress-Specs",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "MetacelloCypressPackageSpec",
+	"type" : "normal"
+}

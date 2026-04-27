@@ -1,0 +1,14 @@
+{
+	"category" : "BaselineOfGLASS1",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "BaselineOfGLASS1",
+	"pools" : [
+		 ],
+	"super" : "BaselineOf",
+	"type" : "normal" }

@@ -1,0 +1,25 @@
+{
+	"category" : "GsApplicationTools-Server",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"name",
+		"serverClassAssoc",
+		"serverInstance",
+		"portOrResourceNameList",
+		"enableRemoteBreakpoints",
+		"transactionMode",
+		"interactiveMode",
+		"crashLog",
+		"enableCreateContinuations",
+		"gemServerExceptionSet",
+		"basicServerProcess",
+		"basicTransactionReentry" ],
+	"name" : "GemServer",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

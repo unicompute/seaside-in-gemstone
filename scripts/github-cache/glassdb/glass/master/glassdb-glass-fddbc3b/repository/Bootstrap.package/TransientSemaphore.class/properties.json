@@ -1,0 +1,14 @@
+{
+	"category" : "Bootstrap-Gemstone",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"semaphore" ],
+	"name" : "TransientSemaphore",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "transient" }

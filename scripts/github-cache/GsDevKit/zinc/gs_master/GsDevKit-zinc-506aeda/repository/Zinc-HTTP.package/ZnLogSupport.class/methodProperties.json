@@ -1,0 +1,20 @@
+{
+	"class" : {
+		"newEnabled" : "SvenVanCaekenberghe 3/29/2011 11:40" },
+	"instance" : {
+		"addListener:" : "SvenVanCaekenberghe 10/4/2011 12:28",
+		"announcer" : "SvenVanCaekenberghe 3/28/2011 22:04",
+		"debug:" : "SvenVanCaekenberghe 3/29/2011 09:50",
+		"disable" : "SvenVanCaekenberghe 10/4/2011 12:28",
+		"enable" : "SvenVanCaekenberghe 10/4/2011 12:28",
+		"enabled" : "SvenVanCaekenberghe 3/29/2011 09:29",
+		"enabled:" : "SvenVanCaekenberghe 3/29/2011 09:30",
+		"error:" : "dkh 06/29/2014 10:54",
+		"error:message:" : "dkh 12/03/2014 12:04",
+		"gemServerExceptionSet" : "dkh 12/20/2014 10:43",
+		"handleBreakpointException:resumeIfResumable:" : "dkh 12/11/2014 06:46",
+		"info:" : "SvenVanCaekenberghe 3/29/2011 09:50",
+		"initialize" : "SvenVanCaekenberghe 10/4/2011 12:28",
+		"object:" : "dkh 12/03/2014 20:16",
+		"removeListener:" : "SvenVanCaekenberghe 10/4/2011 12:28",
+		"transaction:" : "SvenVanCaekenberghe 3/29/2011 09:50" } }

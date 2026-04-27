@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "ZnDispatcherDelegateTest",
+	"pools" : [
+		 ],
+	"super" : "ZnServerBasedTests",
+	"type" : "normal" }

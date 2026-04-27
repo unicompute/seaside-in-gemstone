@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-REST-Server",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "<historical>",
+	"instvars" : [
+		"call" ],
+	"name" : "ZnRestCallUnauthorized",
+	"pools" : [
+		 ],
+	"super" : "Exception",
+	"type" : "normal" }

@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "pmm 9/12/2018 14:45",
+	"super" : "WAAbstractContinuation",
+	"category" : "Seaside-Pharo-Continuation-Base",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"values"
+	],
+	"name" : "WAPartialContinuation",
+	"type" : "normal"
+}

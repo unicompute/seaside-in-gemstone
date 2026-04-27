@@ -1,0 +1,19 @@
+{
+	"class" : {
+		"shouldInheritSelectors" : "dkh 12/14/2014 07:21" },
+	"instance" : {
+		"expectedFailures" : "dkh 12/14/2014 10:35",
+		"gemServerClass" : "dkh 01/09/2015 10:14",
+		"tearDown" : "dkh 01/12/2015 14:22",
+		"testDefault" : "dkh 12/14/2014 07:11",
+		"testLocalUrl" : "dkh 12/14/2014 10:00",
+		"testSessionExpired" : "dkh 12/14/2014 08:03",
+		"testUrl" : "dkh 12/14/2014 08:10",
+		"withServerAuthenticator:do:" : "dkh 12/14/2014 07:41",
+		"withServerBindingAddress:do:" : "dkh 12/14/2014 07:50",
+		"withServerDelegate:do:" : "dkh 12/14/2014 07:58",
+		"withServerDo:" : "dkh 12/13/2014 19:29",
+		"withServerMaximumEntitySize:do:" : "dkh 12/14/2014 07:53",
+		"withServerReader:do:" : "dkh 12/14/2014 07:46",
+		"withServerRoute:do:" : "dkh 12/14/2014 08:04",
+		"withServerUseGzipCompressionAndChunking:do:" : "dkh 12/14/2014 07:56" } }

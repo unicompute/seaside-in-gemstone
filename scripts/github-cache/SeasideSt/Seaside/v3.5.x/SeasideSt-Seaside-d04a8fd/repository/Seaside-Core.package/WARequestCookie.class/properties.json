@@ -1,0 +1,19 @@
+{
+	"commentStamp" : "pmm 9/10/2018 18:07",
+	"super" : "WAObject",
+	"category" : "Seaside-Core-HTTP",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"key",
+		"path",
+		"pathEncoded",
+		"domain",
+		"ports",
+		"value",
+		"version"
+	],
+	"name" : "WARequestCookie",
+	"type" : "normal"
+}

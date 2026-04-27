@@ -1,0 +1,15 @@
+{
+	"category" : "Zinc-REST-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		"InteractiveRemoteServer",
+		"StaticRemoteServer" ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "ZnGsPersistentStorageRestServerDelegateTest",
+	"pools" : [
+		 ],
+	"super" : "ZnGsExampleStorageRestServerDelegateTest",
+	"type" : "normal" }

@@ -1,0 +1,87 @@
+! Bootstrap full Rowan V3 into a plain GemStone image so the project can be
+! loaded from the Rowan load spec under rowan/specs/.
+! This is the practical GemStone-native alternative to trying to add only
+! TonelRepository/TonelReader to a base image.
+! Run this script as SystemUser.
+!
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-bootstrap-rowan.topaz
+
+! set user SystemUser pass swordfish
+! set gems gs64stone
+! set gemnetid !#netldi:gs64ldi!gemnetobject
+
+! login
+
+run
+| currentUser |
+currentUser := System myUserProfile userId.
+currentUser = 'SystemUser'
+	ifFalse: [
+		Error signal:
+			'Rowan bootstrap must run as SystemUser. Current user is ',
+			currentUser printString,
+			'. topaz -l typically reuses ~/.topazini, so either change that login or prepend a SystemUser login before inputing this script.' ].
+'Running Rowan bootstrap as SystemUser'
+%
+
+input $GEMSTONE/upgrade/Filein4Upgrade.gs
+commit
+
+input $GEMSTONE/upgrade/bootstrap/FileSystemGs.gs
+commit
+
+input $GEMSTONE/upgrade/preRowanV2_tonel.topaz
+
+run
+| symbolList ensurePersistentDict |
+symbolList := System myUserProfile symbolList.
+ensurePersistentDict := [ :globalKey :dictName |
+	| dict size |
+	dict := Globals at: globalKey otherwise: nil.
+	dict ifNil: [
+		dict := SymbolDictionary new
+			name: dictName;
+			objectSecurityPolicy: symbolList objectSecurityPolicy;
+			yourself.
+		Globals at: globalKey put: dict ].
+	(symbolList detect: [ :each | each == dict ] ifNone: [ nil ]) ifNil: [
+		size := symbolList size.
+		System myUserProfile insertDictionary: dict at: size + 1 ].
+	dict ].
+ensurePersistentDict value: #RowanTools value: #RowanTools.
+ensurePersistentDict value: #RowanLoader value: #RowanLoader.
+'Prepared Rowan symbol dictionaries'
+%
+
+run
+GsFileIn fromServerPath: '$GEMSTONE/upgrade/bootstrap/RowanV3_tonel.gs'.
+GsFileIn fromServerPath: '$GEMSTONE/upgrade/bootstrap/RowanV3.gs'.
+'Loaded RowanV3_tonel.gs and RowanV3.gs'
+%
+
+input $GEMSTONE/upgrade/postRowanV2_tonel.topaz
+commit
+
+expectvalue /String
+run
+String streamContents: [ :stream |
+	| rowanClass specClass stonClass |
+	rowanClass := System myUserProfile objectNamed: 'Rowan'.
+	specClass := System myUserProfile objectNamed: 'RwSpecification'.
+	stonClass := System myUserProfile objectNamed: 'STON'.
+	stream
+		nextPutAll: 'Rowan = ';
+		nextPutAll: rowanClass printString;
+		cr;
+		nextPutAll: 'RwSpecification = ';
+		nextPutAll: specClass printString;
+		cr;
+		nextPutAll: 'STON = ';
+		nextPutAll: stonClass printString ]
+%
+
+! logout
+! quit

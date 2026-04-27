@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "SUSplitter",
+	"category" : "Scriptaculous-Components-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "SUVerticalSplitter",
+	"type" : "normal"
+}

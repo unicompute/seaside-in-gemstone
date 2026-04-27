@@ -1,0 +1,10 @@
+RwSimpleProjectLoadComponentV2 {
+	#name : 'Metacello',
+	#condition : 'common',
+	#projectNames : [ ],
+	#componentNames : [ ],
+	#packageNames : [
+		'BaselineOfSeasideInGemStone'
+	],
+	#comment : 'Metacello baseline package retained for Pharo-side loading'
+}

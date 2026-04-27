@@ -1,0 +1,12 @@
+RwSimpleProjectLoadComponentV2 {
+	#name : 'Tests',
+	#condition : 'common',
+	#projectNames : [ ],
+	#componentNames : [
+		'Core'
+	],
+	#packageNames : [
+		'SeasideInGemStone-Tests'
+	],
+	#comment : 'SeasideInGemStone test packages'
+}

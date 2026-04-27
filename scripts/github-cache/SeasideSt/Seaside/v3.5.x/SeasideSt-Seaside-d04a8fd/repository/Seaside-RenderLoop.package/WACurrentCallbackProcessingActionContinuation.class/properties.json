@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WADynamicVariable",
+	"category" : "Seaside-RenderLoop-Base",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WACurrentCallbackProcessingActionContinuation",
+	"type" : "normal"
+}

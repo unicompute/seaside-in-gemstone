@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WABasicDevelopment",
+	"category" : "Seaside-GemStone-Development-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WADevelopment",
+	"type" : "normal"
+}

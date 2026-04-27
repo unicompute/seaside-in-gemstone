@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-GemStone-Server-Tools",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "ZnGemServer",
+	"pools" : [
+		 ],
+	"super" : "ZnAbstractGemServer",
+	"type" : "normal" }

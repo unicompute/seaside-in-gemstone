@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "",
+	"super" : "PTUpdater",
+	"category" : "Scriptaculous-Core-Controls",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"element"
+	],
+	"name" : "SUAutocompleter",
+	"type" : "normal"
+}

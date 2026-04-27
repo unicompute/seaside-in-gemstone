@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Browsers",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBHierarchyImplementorsBrowser",
+	"pools" : [
+		 ],
+	"super" : "OBImplementorsBrowser",
+	"type" : "normal" }

@@ -1,0 +1,22 @@
+{
+	"class" : {
+		"addImageShutdownTask:for:" : "DataCurator 09/16/2008 16:37",
+		"allSubclassesOf:" : "DataCurator 09/16/2008 16:37",
+		"associationWithKey:value:" : "DataCurator 09/16/2008 16:37",
+		"byteArrayFromHexString:" : "DataCurator 09/16/2008 16:37",
+		"characterFromInteger:" : "DataCurator 09/16/2008 16:37",
+		"evaluate:in:" : "jupiter 03/04/2015 14:53",
+		"evaluate:receiver:in:" : "dkh 09/17/2008 15:27",
+		"hexStringFromByteArray:" : "DataCurator 09/16/2008 16:37",
+		"integerFromString:" : "DataCurator 09/16/2008 16:37",
+		"isGemStone" : "DataCurator 09/16/2008 16:37",
+		"isHeadless" : "DataCurator 09/16/2008 16:37",
+		"isVisualWorks" : "DataCurator 09/16/2008 16:37",
+		"madeObsoleteBy:" : "DataCurator 09/16/2008 16:37",
+		"removeShutdownActionFor:" : "DataCurator 09/16/2008 16:37",
+		"runShellCommandString:" : "DataCurator 09/16/2008 16:37",
+		"streamStartPosition" : "DataCurator 09/16/2008 16:37",
+		"workInProgress" : "DataCurator 09/16/2008 16:37",
+		"writeStackDumpForException:context:to:" : "DataCurator 09/16/2008 16:37" },
+	"instance" : {
+		 } }

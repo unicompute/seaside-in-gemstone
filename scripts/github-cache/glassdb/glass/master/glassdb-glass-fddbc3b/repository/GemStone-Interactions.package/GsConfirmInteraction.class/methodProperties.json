@@ -1,0 +1,25 @@
+{
+	"class" : {
+		"prompt:" : "dkh 11/07/2013 19:50",
+		"prompt:confirm:" : "dkh 11/07/2013 19:50",
+		"prompt:confirm:cancel:" : "dkh 11/08/2013 12:47",
+		"prompt:confirm:cancel:abort:" : "dkh 01/16/2015 11:01" },
+	"instance" : {
+		"abort" : "dkh 01/16/2015 11:01",
+		"abort:" : "dkh 01/16/2015 11:01",
+		"abortFor:" : "dkh 01/16/2015 11:02",
+		"abortResponse" : "dkh 01/16/2015 11:02",
+		"cancel" : "dkh 11/08/2013 16:04",
+		"cancel:" : "dkh 11/07/2013 19:47",
+		"cancelFor:" : "dkh 11/08/2013 16:05",
+		"cancelResponse" : "dkh 11/08/2013 16:05",
+		"confirm" : "dkh 11/07/2013 19:47",
+		"confirm:" : "dkh 11/07/2013 19:47",
+		"defaultActionBlock" : "dkh 06/03/2014 15:32",
+		"interactWith:" : "dkh 11/08/2013 15:54",
+		"ok" : "dkh 11/07/2013 19:54",
+		"okFor:" : "dkh 11/08/2013 16:05",
+		"okResponse" : "dkh 11/08/2013 16:05",
+		"printLabel" : "dkh 06/03/2014 15:07",
+		"prompt" : "dkh 11/07/2013 19:47",
+		"prompt:" : "dkh 07/07/2014 16:51" } }

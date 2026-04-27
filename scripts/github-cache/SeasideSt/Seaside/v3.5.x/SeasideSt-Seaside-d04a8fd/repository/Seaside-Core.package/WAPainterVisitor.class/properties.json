@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "jf 2/13/2009 19:50",
+	"super" : "WAVisitor",
+	"category" : "Seaside-Core-Rendering",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAPainterVisitor",
+	"type" : "normal"
+}

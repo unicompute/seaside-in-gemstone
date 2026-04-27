@@ -1,0 +1,14 @@
+{
+	"category" : "Metacello-Cypress",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "MetacelloCypressBaselineProject",
+	"pools" : [
+		 ],
+	"super" : "MetacelloProject",
+	"type" : "normal" }

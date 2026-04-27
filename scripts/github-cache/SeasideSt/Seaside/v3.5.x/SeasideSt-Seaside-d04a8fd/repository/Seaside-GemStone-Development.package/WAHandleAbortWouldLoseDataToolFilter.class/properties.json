@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WARequestFilter",
+	"category" : "Seaside-GemStone-Development-Filter",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAHandleAbortWouldLoseDataToolFilter",
+	"type" : "normal"
+}

@@ -1,0 +1,22 @@
+{
+	"category" : "Sport",
+	"classinstvars" : [
+		"addressFamilies",
+		"protocolFamilies",
+		"socketTypes",
+		"socketOptionLevels",
+		"socketOptions",
+		"fileControlOptions" ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"communicationDomain",
+		"socketType",
+		"protocolNumber",
+		"underlyingSocket" ],
+	"name" : "SpSocket",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

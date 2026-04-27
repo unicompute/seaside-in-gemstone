@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "pmm 7/17/2011 18:13",
+	"super" : "WACookieSessionTrackingStrategy",
+	"category" : "Seaside-Session-Tracking",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WACookieOnlySessionTrackingStrategy",
+	"type" : "normal"
+}

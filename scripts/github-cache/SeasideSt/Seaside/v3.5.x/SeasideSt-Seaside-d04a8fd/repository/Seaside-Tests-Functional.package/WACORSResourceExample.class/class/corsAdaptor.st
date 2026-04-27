@@ -1,0 +1,4 @@
+setup
+corsAdaptor
+
+	^ CorsAdaptor

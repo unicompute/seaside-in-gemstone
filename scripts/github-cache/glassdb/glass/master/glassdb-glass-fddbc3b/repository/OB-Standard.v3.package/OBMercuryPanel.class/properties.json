@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Panels",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBMercuryPanel",
+	"pools" : [
+		 ],
+	"super" : "OBTextPanel",
+	"type" : "normal" }

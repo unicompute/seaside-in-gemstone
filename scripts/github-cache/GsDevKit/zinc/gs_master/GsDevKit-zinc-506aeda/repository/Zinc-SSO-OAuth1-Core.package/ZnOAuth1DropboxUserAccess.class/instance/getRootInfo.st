@@ -1,0 +1,3 @@
+api
+getRootInfo
+	^ self getMetaData: #( #/ )

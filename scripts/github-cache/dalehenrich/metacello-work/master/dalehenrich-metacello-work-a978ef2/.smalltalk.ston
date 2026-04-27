@@ -1,0 +1,16 @@
+SmalltalkCISpec {
+  #name : 'Metacello',
+  #loading : [
+    SCIMetacelloLoadSpec {
+      #baseline : 'Metacello',
+      #onWarningLog : true,
+      #load : [ 'Tests' ],
+      #directory : 'repository'
+    }
+  ],
+  #testing : {
+    #include : {
+      #classes : [ #SentButNotImplementedTest, #UndefinedSymbolsTest ]
+    }
+  }
+}

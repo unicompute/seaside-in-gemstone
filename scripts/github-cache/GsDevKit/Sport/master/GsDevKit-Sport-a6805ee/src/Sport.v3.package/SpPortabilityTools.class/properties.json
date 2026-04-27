@@ -1,0 +1,14 @@
+{
+	"category" : "Sport-Portability",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "SpPortabilityTools",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

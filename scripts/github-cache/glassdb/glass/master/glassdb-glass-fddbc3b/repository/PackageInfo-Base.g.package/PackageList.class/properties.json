@@ -1,0 +1,15 @@
+{
+	"category" : "PackageInfo-Base",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"selectedPackage",
+		"packages" ],
+	"name" : "PackageList",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

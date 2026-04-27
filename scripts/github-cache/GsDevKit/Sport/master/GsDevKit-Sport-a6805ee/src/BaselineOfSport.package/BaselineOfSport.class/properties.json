@@ -1,0 +1,14 @@
+{
+	"category" : "BaselineOfSport",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "dkh 10/05/2017 16:38",
+	"instvars" : [
+		 ],
+	"name" : "BaselineOfSport",
+	"pools" : [
+		 ],
+	"super" : "BaselineOf",
+	"type" : "normal" }

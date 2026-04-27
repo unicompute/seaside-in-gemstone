@@ -1,0 +1,16 @@
+{
+	"commentStamp" : "",
+	"super" : "SUDatePicker",
+	"category" : "Scriptaculous-Components-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"showSeconds",
+		"hours",
+		"minutes",
+		"seconds"
+	],
+	"name" : "SUDateTimePicker",
+	"type" : "normal"
+}

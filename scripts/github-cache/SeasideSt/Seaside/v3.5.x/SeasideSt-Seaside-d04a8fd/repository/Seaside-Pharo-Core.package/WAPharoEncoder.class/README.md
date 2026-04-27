@@ -1,0 +1,1 @@
+I am  the common abstract superclass for Pharo encoders.

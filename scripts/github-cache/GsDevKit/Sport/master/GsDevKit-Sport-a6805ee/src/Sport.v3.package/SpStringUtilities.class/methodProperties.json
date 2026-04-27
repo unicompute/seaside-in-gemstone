@@ -1,0 +1,12 @@
+{
+	"class" : {
+		"bytes:asStringUsingEncodingNames:" : "DataCurator 09/16/2008 16:37",
+		"bytesAsString:" : "DataCurator 09/16/2008 16:37",
+		"prevIndexOf:from:to:in:" : "DataCurator 09/16/2008 16:37",
+		"string:asBytesUsingEncodingNamed:" : "DataCurator 09/16/2008 16:37",
+		"string:matches:" : "dkh 03/31/2009 10:00",
+		"stringFromBytes:" : "DataCurator 09/16/2008 16:37",
+		"tokensBasedOn:in:" : "DataCurator 09/16/2008 16:37",
+		"trimBlanksFrom:" : "DataCurator 09/16/2008 16:37" },
+	"instance" : {
+		 } }

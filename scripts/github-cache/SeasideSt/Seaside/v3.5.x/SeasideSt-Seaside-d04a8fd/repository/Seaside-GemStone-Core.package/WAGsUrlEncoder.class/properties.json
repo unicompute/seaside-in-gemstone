@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WAUrlEncoder",
+	"category" : "Seaside-GemStone-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAGsUrlEncoder",
+	"type" : "normal"
+}

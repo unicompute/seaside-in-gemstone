@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-REST-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "dkh 12/04/2014 06:25",
+	"instvars" : [
+		"gemServer" ],
+	"name" : "ZnGsExampleSumRestCallTest",
+	"pools" : [
+		 ],
+	"super" : "ZnAbstractExampleSumRestCallTest",
+	"type" : "normal" }

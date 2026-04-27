@@ -1,0 +1,1 @@
+WACacheis the abstract base class for session and continuation stores in Seaside. The default implementation is WAHashCache.

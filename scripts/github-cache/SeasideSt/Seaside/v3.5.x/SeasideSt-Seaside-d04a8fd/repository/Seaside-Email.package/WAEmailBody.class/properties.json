@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "pmm 9/12/2018 14:37",
+	"super" : "WAObject",
+	"category" : "Seaside-Email-Base",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"contentString"
+	],
+	"name" : "WAEmailBody",
+	"type" : "normal"
+}

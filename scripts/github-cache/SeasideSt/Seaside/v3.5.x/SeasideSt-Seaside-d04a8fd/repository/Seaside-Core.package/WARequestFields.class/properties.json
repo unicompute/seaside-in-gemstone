@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "GROrderedMultiMap2",
+	"category" : "Seaside-Core-HTTP",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WARequestFields",
+	"type" : "normal"
+}

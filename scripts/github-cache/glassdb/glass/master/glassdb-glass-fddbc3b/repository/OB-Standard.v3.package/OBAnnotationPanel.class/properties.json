@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Panels",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"text" ],
+	"name" : "OBAnnotationPanel",
+	"pools" : [
+		 ],
+	"super" : "OBTextPanel",
+	"type" : "normal" }

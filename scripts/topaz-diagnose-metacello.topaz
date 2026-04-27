@@ -1,0 +1,85 @@
+! Diagnose Metacello / Gofer bootstrap health in a GemStone stone.
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-diagnose-metacello.topaz
+
+! set user DataCurator pass swordfish
+! set gemstone gs64stone
+! set gemnetid !#netldi:gs64ldi!gemnetobject
+
+! login
+
+run
+| stream |
+stream := WriteStream on: String new.
+#(
+  Gofer
+  Metacello
+  MetacelloProjectRegistration
+  MetacelloMCProjectSpec
+  MetacelloMCBaselineOfProjectSpec
+  MetacelloMCConfigurationOfProjectSpec
+) do: [ :symbol |
+  | value |
+  value := Smalltalk at: symbol ifAbsent: [ nil ].
+  stream
+    nextPutAll: symbol asString;
+    nextPutAll: ' = ';
+    nextPutAll: (value ifNil: [ 'nil' ] ifNotNil: [ value printString ]);
+    cr ].
+stream contents
+%
+
+run
+| registrationClass mcProjectSpec baselineSpec configurationSpec stream |
+registrationClass := Smalltalk at: #MetacelloProjectRegistration ifAbsent: [ nil ].
+mcProjectSpec := Smalltalk at: #MetacelloMCProjectSpec ifAbsent: [ nil ].
+baselineSpec := Smalltalk at: #MetacelloMCBaselineOfProjectSpec ifAbsent: [ nil ].
+configurationSpec := Smalltalk at: #MetacelloMCConfigurationOfProjectSpec ifAbsent: [ nil ].
+stream := WriteStream on: String new.
+{
+  'MetacelloProjectRegistration>>isValid' ->
+    (registrationClass notNil and: [ registrationClass includesSelector: #isValid ]).
+  'MetacelloProjectRegistration class>>fromMCBaselineProjectSpec:' ->
+    (registrationClass notNil and: [ registrationClass class includesSelector: #fromMCBaselineProjectSpec: ]).
+  'MetacelloProjectRegistration class>>fromMCConfigurationProjectSpec:' ->
+    (registrationClass notNil and: [ registrationClass class includesSelector: #fromMCConfigurationProjectSpec: ]).
+  'MetacelloMCProjectSpec>>asProjectRegistration' ->
+    (mcProjectSpec notNil and: [ mcProjectSpec includesSelector: #asProjectRegistration ]).
+  'MetacelloMCBaselineOfProjectSpec>>asProjectRegistration' ->
+    (baselineSpec notNil and: [ baselineSpec includesSelector: #asProjectRegistration ]).
+  'MetacelloMCConfigurationOfProjectSpec>>asProjectRegistration' ->
+    (configurationSpec notNil and: [ configurationSpec includesSelector: #asProjectRegistration ])
+} do: [ :association |
+  stream
+    nextPutAll: association key;
+    nextPutAll: ' = ';
+    nextPutAll: association value printString;
+    cr ].
+stream contents
+%
+
+run
+| registrationClass registry |
+registrationClass := Smalltalk at: #MetacelloProjectRegistration ifAbsent: [ nil ].
+registrationClass ifNil: [ 'MetacelloProjectRegistration missing' ] ifNotNil: [
+registry := registrationClass registry.
+String streamContents: [ :stream |
+  stream
+    nextPutAll: 'registryClass = ';
+    nextPutAll: registry class printString;
+    cr;
+    nextPutAll: 'isEmpty = ';
+    nextPutAll: registry isEmpty printString;
+    cr;
+    nextPutAll: 'baselineRegistrySize = ';
+    nextPutAll: registry baselineRegistry size printString;
+    cr;
+    nextPutAll: 'configurationRegistrySize = ';
+    nextPutAll: registry configurationRegistry size printString;
+    cr ] ]
+%
+
+logout
+quit

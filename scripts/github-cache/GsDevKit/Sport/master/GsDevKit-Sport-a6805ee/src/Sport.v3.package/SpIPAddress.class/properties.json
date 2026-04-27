@@ -1,0 +1,15 @@
+{
+	"category" : "Sport",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"hostAddress",
+		"portNumber" ],
+	"name" : "SpIPAddress",
+	"pools" : [
+		 ],
+	"super" : "SpSocketAddress",
+	"type" : "normal" }

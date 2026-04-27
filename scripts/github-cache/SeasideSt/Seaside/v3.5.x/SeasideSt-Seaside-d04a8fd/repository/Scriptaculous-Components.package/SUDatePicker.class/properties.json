@@ -1,0 +1,18 @@
+{
+	"commentStamp" : "",
+	"super" : "WAMiniCalendar",
+	"category" : "Scriptaculous-Components-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"widgetId",
+		"uid",
+		"format",
+		"origin",
+		"containerId",
+		"open"
+	],
+	"name" : "SUDatePicker",
+	"type" : "normal"
+}

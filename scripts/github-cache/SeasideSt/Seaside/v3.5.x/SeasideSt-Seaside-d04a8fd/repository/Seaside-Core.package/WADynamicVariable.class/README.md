@@ -1,0 +1,1 @@
+I exist for legacy purposes. You should subclass GRDynamicVariable.

@@ -1,0 +1,14 @@
+{
+	"category" : "PackageInfo-Base",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		"ServiceClasses" ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "PackageServices",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

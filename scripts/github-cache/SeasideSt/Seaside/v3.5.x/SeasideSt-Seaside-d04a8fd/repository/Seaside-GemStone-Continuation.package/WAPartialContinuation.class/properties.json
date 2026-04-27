@@ -1,0 +1,15 @@
+{
+	"category" : "Seaside-GemStone-Continuation",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"partial",
+		"markerBlock" ],
+	"name" : "WAPartialContinuation",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

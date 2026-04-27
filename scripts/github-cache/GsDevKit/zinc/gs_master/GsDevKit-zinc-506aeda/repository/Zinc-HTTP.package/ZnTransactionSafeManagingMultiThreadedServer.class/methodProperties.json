@@ -1,0 +1,21 @@
+{
+	"class" : {
+		"defaultServerClass" : "dkh 01/07/2015 17:01" },
+	"instance" : {
+		"closeConnections" : "dkh 12/08/2014 15:21",
+		"closeSocketStream:" : "dkh 12/08/2014 15:21",
+		"connections" : "dkh 04/03/2015 11:14",
+		"executeOneRequestResponseOn:" : "dkh 12/08/2014 15:59",
+		"executeRequestResponseLoopOn:" : "dkh 12/20/2014 10:42",
+		"initializeServerSocket" : "dkh 04/03/2015 11:15",
+		"listenLoop" : "dkh 12/08/2014 15:54",
+		"lock" : "dkh 12/08/2014 15:21",
+		"readRequest:" : "dkh 12/08/2014 16:00",
+		"readRequestSafely:" : "dkh 12/11/2014 06:28",
+		"releaseServerSocket" : "dkh 12/08/2014 15:53",
+		"serveConnectionsOn:" : "dkh 12/09/2014 10:02",
+		"serverSocket" : "dkh 12/08/2014 15:51",
+		"socketStreamOn:" : "dkh 12/08/2014 15:21",
+		"stop:" : "dkh 12/08/2014 15:21",
+		"writeResponse:on:" : "PaulDeBruicker 06/24/2022 16:25",
+		"writeResponseSafely:on:" : "dkh 12/08/2014 15:58" } }

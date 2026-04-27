@@ -1,0 +1,15 @@
+{
+	"category" : "Zinc-WebSocket-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		"InteractiveRemoteServer",
+		"StaticRemoteServer" ],
+	"commentStamp" : "<historical>",
+	"instvars" : [
+		"registry" ],
+	"name" : "ZnWebSocketTests",
+	"pools" : [
+		 ],
+	"super" : "TestCase",
+	"type" : "normal" }

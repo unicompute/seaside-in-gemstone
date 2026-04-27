@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WAInspector",
+	"category" : "Seaside-GemStone-Development-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAGemStoneInspector",
+	"type" : "normal"
+}

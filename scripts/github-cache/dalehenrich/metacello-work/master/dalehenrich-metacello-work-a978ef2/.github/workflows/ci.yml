@@ -1,0 +1,42 @@
+name: smalltalkCI
+
+on: 
+  push:
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: "15 2 11 * *" #run job on the 11th day of every month on the 15th minute of the 2nd hour
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04,  ubuntu-24.04 ]
+        smalltalk: [GemStone64-3.7.0, GemStone64-3.6.6, GemStone64-3.5.8 ]
+        config: [ .smalltalkA.ston, .smalltalkB.ston ]
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.smalltalk }} ${{ matrix.os }} ${{ matrix.config }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hpi-swa/setup-smalltalkCI@v1
+        with:
+          smalltalk-image: ${{ matrix.smalltalk }}
+      - name: Run tests
+        run: smalltalkci -s ${{ matrix.smalltalk }} ${{ matrix.config }}
+        shell: bash
+        timeout-minutes: 60
+  slack-workflow-status:
+    if: always()
+    name: Post Workflow Status To Slack
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+       - name: Slack Workflow Notification
+         uses: Gamesight/slack-workflow-status@master
+         with:
+          repo_token: ${{secrets.GITHUB_TOKEN}}
+          slack_webhook_url: ${{secrets.SLACK_DALEHENRICH}}
+          name: 'action run' 

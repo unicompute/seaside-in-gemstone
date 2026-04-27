@@ -1,0 +1,15 @@
+{
+	"category" : "Zinc-SSO-OAuth2-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "<historical>",
+	"instvars" : [
+		"accessType",
+		"approvalPrompt" ],
+	"name" : "ZnGoogleOAuth2Session",
+	"pools" : [
+		 ],
+	"super" : "ZnOAuth2Session",
+	"type" : "normal" }

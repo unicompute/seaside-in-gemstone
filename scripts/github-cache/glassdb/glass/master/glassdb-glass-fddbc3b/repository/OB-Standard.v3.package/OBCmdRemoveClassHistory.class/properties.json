@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Commands",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBCmdRemoveClassHistory",
+	"pools" : [
+		 ],
+	"super" : "OBCommand",
+	"type" : "normal" }

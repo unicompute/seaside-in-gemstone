@@ -1,0 +1,4 @@
+private
+transientGlobals
+
+	^SessionTemps current

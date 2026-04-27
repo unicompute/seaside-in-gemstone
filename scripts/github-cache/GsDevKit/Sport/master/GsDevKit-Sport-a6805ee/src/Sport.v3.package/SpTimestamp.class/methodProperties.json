@@ -1,0 +1,15 @@
+{
+	"class" : {
+		"fromDate:andTime:" : "DataCurator 09/16/2008 16:30",
+		"fromRFC1123String:" : "DataCurator 09/16/2008 16:30",
+		"now" : "DataCurator 09/16/2008 16:30",
+		"threeCharacterWeekDayNames" : "DataCurator 09/16/2008 16:30" },
+	"instance" : {
+		"<=" : "DataCurator 09/16/2008 16:30",
+		"=" : "DataCurator 09/16/2008 16:30",
+		">" : "DataCurator 09/16/2008 16:30",
+		"asNowUTC" : "DataCurator 09/16/2008 16:30",
+		"asRFC1123String" : "DataCurator 09/16/2008 16:30",
+		"asRFC1123StringOn:" : "DataCurator 09/16/2008 16:30",
+		"fromDate:andTime:" : "DataCurator 09/16/2008 16:30",
+		"underlyingTimestamp" : "DataCurator 09/16/2008 16:30" } }

@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "JSObjectTest",
+	"category" : "Scriptaculous-Tests-Core-Unit",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "SUMiscTest",
+	"type" : "normal"
+}

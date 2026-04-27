@@ -1,0 +1,3 @@
+private
+defaultLog
+  self subclassResponsibility

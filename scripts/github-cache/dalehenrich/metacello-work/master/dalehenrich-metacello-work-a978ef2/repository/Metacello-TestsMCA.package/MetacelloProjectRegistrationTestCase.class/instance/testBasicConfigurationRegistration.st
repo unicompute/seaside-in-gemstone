@@ -1,0 +1,4 @@
+tests
+testBasicConfigurationRegistration
+	registrationA configurationProjectSpec: configurationProjectSpec.
+	self checkRegistrationValidity

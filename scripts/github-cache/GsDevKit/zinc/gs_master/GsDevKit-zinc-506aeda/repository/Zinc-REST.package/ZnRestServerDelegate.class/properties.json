@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-REST-Server",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "<historical>",
+	"instvars" : [
+		"uriSpace" ],
+	"name" : "ZnRestServerDelegate",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

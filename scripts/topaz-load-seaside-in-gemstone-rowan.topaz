@@ -1,0 +1,128 @@
+! Load SeasideInGemStone through Rowan after Rowan has been bootstrapped into
+! the stone with scripts/topaz-bootstrap-rowan.topaz.
+! On GemStone 3.7.5, use SystemUser for this load.
+! DataCurator in the stock image still resolves Symbol >> #-> to Association
+! instead of SymbolAssociation, which breaks Rowan spec resolution.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-load-seaside-in-gemstone-rowan.topaz
+
+! set user SystemUser pass swordfish
+! set gemstone gs64stone
+! Use a larger temp object cache for package loading/upgrade work.
+! set gemnetid !#netldi:gs64ldi!gemnetobject -T 200000
+
+! login
+
+run
+| symbolList ensureRowanDictionary |
+symbolList := System myUserProfile symbolList.
+ensureRowanDictionary := [ :globalKey :missingMessage |
+	| dict size |
+	dict := Globals at: globalKey otherwise: nil.
+	dict ifNil: [ Error signal: missingMessage ].
+	(symbolList detect: [ :each | each == dict ] ifNone: [ nil ]) ifNil: [
+		size := symbolList size.
+		System myUserProfile insertDictionary: dict at: size + 1 ] ].
+ensureRowanDictionary
+	value: #RowanKernel_tonel
+	value: 'Rowan bootstrap is missing. Run scripts/topaz-bootstrap-rowan.topaz as SystemUser first.'.
+ensureRowanDictionary
+	value: #RowanTools
+	value: 'Rowan bootstrap is incomplete. RowanTools is missing in Globals.'.
+ensureRowanDictionary
+	value: #RowanLoader
+	value: 'Rowan bootstrap is incomplete. RowanLoader is missing in Globals.'.
+'Rowan dictionaries exposed to current user'
+%
+
+run
+| lookup registrationClass scriptEngineClass |
+lookup := [ :globalName | System myUserProfile objectNamed: globalName ].
+registrationClass := lookup value: 'MetacelloProjectRegistration'.
+scriptEngineClass := lookup value: 'MetacelloScriptEngine'.
+(registrationClass notNil and: [ scriptEngineClass notNil ]) ifTrue: [
+	scriptEngineClass defaultRepositoryDescription: nil.
+	registrationClass resetRegistry.
+	registrationClass primeRegistryFromImage ].
+%
+
+run
+| lookup group raw cleaned |
+lookup := [ :globalName | System myUserProfile objectNamed: globalName ].
+group := lookup value: 'MCRepositoryGroup'.
+group ifNotNil: [
+	group := group default.
+	raw := group instVarAt: 1.
+	raw == nil ifTrue: [ raw := OrderedCollection new ].
+	cleaned := raw reject: [ :each | each isNil ].
+	(raw == cleaned and: [ raw class == cleaned class ])
+		ifFalse: [ group instVarAt: 1 put: cleaned asOrderedCollection ] ].
+%
+
+run
+(System myUserProfile objectNamed: 'WAComponent') ifNil: [
+	Gofer new
+		package: 'GsUpgrader-Core';
+		url: 'http://ss3.gemtalksystems.com/ss/gsUpgrader';
+		load.
+	(System myUserProfile objectNamed: 'GsUpgrader') upgradeGrease.
+	GsDeployer deploy: [
+		Metacello new
+			baseline: 'Seaside3';
+			repository: 'github://SeasideSt/Seaside:v3.5.x/repository';
+			onLock: [ :ex | ex honor ];
+			load: #('Core' 'Javascript' 'Zinc') ] ].
+'Seaside is available'
+%
+
+run
+| groupClass |
+groupClass := System myUserProfile objectNamed: 'MCRepositoryGroup'.
+groupClass ifNotNil: [
+	groupClass
+		compile: 'repositories
+	| validRepositories |
+	validRepositories := OrderedCollection new.
+	(Array with: MCCacheRepository default), repositories do: [ :each |
+		(each ~~ nil and: [ each isValid ])
+			ifTrue: [ validRepositories add: each ] ].
+	^ validRepositories'
+		classified: 'accessing' ].
+%
+
+run
+| currentUser assocClass |
+currentUser := System myUserProfile userId.
+assocClass := (#'name' -> 'rowan-check') class.
+(currentUser = 'SystemUser' or: [ assocClass == SymbolAssociation ]) ifFalse: [
+	Error signal:
+		'Rowan load must currently run as SystemUser in this stone. Current user ',
+		currentUser printString,
+		' resolves Symbol >> #-> to ',
+		assocClass printString,
+		' instead of SymbolAssociation.' ].
+'Rowan base-method preflight passed for current user'
+%
+
+run
+| specClass spec systemUser |
+specClass := System myUserProfile objectNamed: 'RwSpecification'.
+specClass ifNil: [
+	systemUser := AllUsers userWithId: 'SystemUser' ifAbsent: [ nil ].
+	systemUser ifNotNil: [ specClass := systemUser objectNamed: 'RwSpecification' ] ].
+specClass ifNil: [
+	Error signal: 'RwSpecification is not available. Run scripts/topaz-bootstrap-rowan.topaz as SystemUser first.' ].
+spec := (specClass fromUrl: 'file:/Users/tariq/src/gemtools/seaside-in-gemstone/rowan/specs/SeasideInGemStone.ston')
+	projectsHome: '/Users/tariq/src/gemtools';
+	projectAlias: 'seaside-in-gemstone';
+	yourself.
+spec resolve load.
+System commit.
+(System myUserProfile objectNamed: 'SigExplorerApplication') ifNil: [
+	Error signal: 'SigExplorerApplication was not installed into the current user profile.' ].
+'Loaded SigExplorerApplication via Rowan'
+%
+
+logout
+quit

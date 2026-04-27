@@ -1,0 +1,15 @@
+{
+	"category" : "Zinc-Character-Encoding-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		"ByteASCIISet",
+		"ByteUTF8Encoding" ],
+	"commentStamp" : "SvenVanCaekenberghe 12/6/2010 12:55",
+	"instvars" : [
+		 ],
+	"name" : "ZnUTF8Encoder",
+	"pools" : [
+		 ],
+	"super" : "ZnCharacterEncoder",
+	"type" : "normal" }

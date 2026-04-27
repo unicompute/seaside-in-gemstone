@@ -1,0 +1,10 @@
+SmalltalkCISpec {
+  #name : 'Metacello TravisCI 1+2',
+  #loading : [
+    SCIMetacelloLoadSpec {
+      #baseline : 'Metacello',
+      #load : [ 'TravisCI_1', 'TravisCI_2' ],
+      #directory : 'repository'
+    }
+  ]
+}

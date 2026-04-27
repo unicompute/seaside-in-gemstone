@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WAHandlerTrackingStrategyTest",
+	"category" : "Seaside-Tests-Core-RequestHandling",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAQueryFieldHandlerTrackingStrategyTest",
+	"type" : "normal"
+}

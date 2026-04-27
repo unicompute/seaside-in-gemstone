@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "GRReSlimeTest",
+	"category" : "Seaside-Tests-Slime",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WASlimeTest",
+	"type" : "normal"
+}

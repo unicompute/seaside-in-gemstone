@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "",
+	"super" : "WAServerAdaptor",
+	"category" : "Seaside-Adaptors-FastCGI",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"server"
+	],
+	"name" : "WAFastCGIRequestConverter",
+	"type" : "normal"
+}

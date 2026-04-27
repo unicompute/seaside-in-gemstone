@@ -1,0 +1,14 @@
+{
+	"category" : "Zinc-WebSocket-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "ZnGsWebSocketTests",
+	"pools" : [
+		 ],
+	"super" : "ZnWebSocketTests",
+	"type" : "normal" }

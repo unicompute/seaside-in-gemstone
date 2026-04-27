@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-GemStone",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OGCmdClearAllBreakpoints",
+	"pools" : [
+		 ],
+	"super" : "OGCmdBreakpoints",
+	"type" : "normal" }

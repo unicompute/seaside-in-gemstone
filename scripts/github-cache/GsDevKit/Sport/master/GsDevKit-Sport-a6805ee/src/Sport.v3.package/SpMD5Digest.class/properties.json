@@ -1,0 +1,14 @@
+{
+	"category" : "Sport",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "SpMD5Digest",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

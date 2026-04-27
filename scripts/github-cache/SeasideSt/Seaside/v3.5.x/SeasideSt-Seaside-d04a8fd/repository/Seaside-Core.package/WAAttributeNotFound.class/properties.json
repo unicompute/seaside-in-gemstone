@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "",
+	"super" : "WAConfigurationError",
+	"category" : "Seaside-Core-Configuration",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"key"
+	],
+	"name" : "WAAttributeNotFound",
+	"type" : "normal"
+}

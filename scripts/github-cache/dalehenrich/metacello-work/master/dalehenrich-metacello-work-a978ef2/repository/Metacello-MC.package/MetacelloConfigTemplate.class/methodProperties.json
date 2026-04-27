@@ -1,0 +1,15 @@
+{
+	"class" : {
+		"DevelopmentSupport" : "9/28/2017 08:53:29",
+		"baseConfigurationClassIfAbsent:" : "9/28/2017 08:53:29",
+		"ensureMetacello" : "9/28/2017 08:53:29",
+		"ensureMetacelloBaseConfiguration" : "9/28/2017 08:53:29",
+		"isMetacelloConfig" : "9/28/2017 08:53:29",
+		"load" : "9/28/2017 08:53:29",
+		"loadBleedingEdge" : "9/28/2017 08:53:29",
+		"loadDevelopment" : "9/28/2017 08:53:29",
+		"project" : "9/28/2017 08:53:29",
+		"validate" : "9/28/2017 08:53:29" },
+	"instance" : {
+		"customProjectAttributes" : "9/28/2017 08:53:29",
+		"project" : "9/28/2017 08:53:29" } }

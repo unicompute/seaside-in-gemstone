@@ -1,0 +1,16 @@
+{
+	"category" : "OB-Standard-Browsers",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"theClass",
+		"limitClass",
+		"filter" ],
+	"name" : "OBProtocolBrowser",
+	"pools" : [
+		 ],
+	"super" : "OBCodeBrowser",
+	"type" : "normal" }

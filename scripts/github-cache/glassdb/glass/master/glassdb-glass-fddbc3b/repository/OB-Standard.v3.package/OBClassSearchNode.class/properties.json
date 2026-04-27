@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Nodes",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBClassSearchNode",
+	"pools" : [
+		 ],
+	"super" : "OBSearchNode",
+	"type" : "normal" }

@@ -1,0 +1,3 @@
+should not implement
+readRequestSafely: streamTransientStackValue
+  self shouldNotImplement

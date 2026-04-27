@@ -1,0 +1,27 @@
+{
+	"category" : "SMTPMail",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		"Preference" ],
+	"commentStamp" : "",
+	"instvars" : [
+		"mailhostName",
+		"smtpPort",
+		"ownDomainName",
+		"from",
+		"to",
+		"cc",
+		"subject",
+		"headers",
+		"text",
+		"contentType",
+		"plainMessage",
+		"rcptTo",
+		"user",
+		"password" ],
+	"name" : "SendMail",
+	"pools" : [
+		 ],
+	"super" : "GsSocket",
+	"type" : "normal" }

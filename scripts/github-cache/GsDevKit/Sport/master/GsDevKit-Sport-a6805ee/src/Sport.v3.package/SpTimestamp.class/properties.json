@@ -1,0 +1,14 @@
+{
+	"category" : "Sport",
+	"classinstvars" : [
+		"threeCharacterWeekDayName" ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"underlyingTimestamp" ],
+	"name" : "SpTimestamp",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

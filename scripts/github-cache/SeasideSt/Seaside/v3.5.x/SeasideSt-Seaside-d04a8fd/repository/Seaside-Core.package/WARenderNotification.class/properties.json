@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WANotification",
+	"category" : "Seaside-Core-Exceptions",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WARenderNotification",
+	"type" : "normal"
+}

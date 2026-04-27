@@ -1,0 +1,16 @@
+{
+	"commentStamp" : "",
+	"super" : "SUNavigation",
+	"category" : "Scriptaculous-Components-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"selected",
+		"elementHeight",
+		"visibleElements",
+		"offset"
+	],
+	"name" : "SUNavigationCarousel",
+	"type" : "normal"
+}

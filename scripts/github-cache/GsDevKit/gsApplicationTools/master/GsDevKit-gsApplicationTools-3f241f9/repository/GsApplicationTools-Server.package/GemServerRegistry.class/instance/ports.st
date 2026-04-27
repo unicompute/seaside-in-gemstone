@@ -1,0 +1,3 @@
+other
+ports
+  ^ self portOrResourceNameList

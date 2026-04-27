@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Definitions",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"theClass" ],
+	"name" : "OBClassCommentDefinition",
+	"pools" : [
+		 ],
+	"super" : "OBDefinition",
+	"type" : "normal" }

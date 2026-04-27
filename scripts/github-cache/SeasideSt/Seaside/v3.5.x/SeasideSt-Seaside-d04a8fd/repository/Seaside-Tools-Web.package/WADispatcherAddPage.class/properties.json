@@ -1,0 +1,15 @@
+{
+	"commentStamp" : "",
+	"super" : "WADispatcherSubPage",
+	"category" : "Seaside-Tools-Web",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"name",
+		"type",
+		"dispatcher"
+	],
+	"name" : "WADispatcherAddPage",
+	"type" : "normal"
+}

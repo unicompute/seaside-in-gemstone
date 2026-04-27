@@ -1,0 +1,5 @@
+*.image
+*.changes
+*.sources
+*.log
+.DS_Store

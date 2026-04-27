@@ -1,0 +1,17 @@
+{
+	"class" : {
+		"handlesEncoding:" : "SvenVanCaekenberghe 1/25/2011 11:11",
+		"initialize" : "SvenVanCaekenberghe 5/25/2013 13:58",
+		"newForEncoding:" : "SvenVanCaekenberghe 1/25/2011 11:19" },
+	"instance" : {
+		"decodeBytes:" : "dkh 06/25/2014 21:46",
+		"decodeBytesIntoWideString:" : "dkh 06/25/2014 21:38",
+		"encodedByteCountFor:" : "SvenVanCaekenberghe 6/3/2013 19:57",
+		"error" : "SvenVanCaekenberghe 6/3/2013 19:55",
+		"error:" : "SvenVanCaekenberghe 6/3/2013 19:52",
+		"errorIncomplete" : "SvenVanCaekenberghe 6/3/2013 19:59",
+		"errorOutsideRange" : "SvenVanCaekenberghe 6/3/2013 19:58",
+		"errorOverlong" : "SvenVanCaekenberghe 6/4/2013 16:58",
+		"maximumUTF8Code" : "SvenVanCaekenberghe 11/29/2010 21:19",
+		"nextFromStream:" : "SvenVanCaekenberghe 6/4/2013 17:21",
+		"nextPut:toStream:" : "DataCurator 11/18/2013 20:23" } }

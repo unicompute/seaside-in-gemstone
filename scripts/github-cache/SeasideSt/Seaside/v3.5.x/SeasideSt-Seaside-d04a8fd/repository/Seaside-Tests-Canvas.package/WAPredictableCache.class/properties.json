@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "pmm 7/12/2015 14:56",
+	"super" : "WABidirectionalCache",
+	"category" : "Seaside-Tests-Canvas-Base",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"nextKey"
+	],
+	"name" : "WAPredictableCache",
+	"type" : "normal"
+}

@@ -1,0 +1,3 @@
+server compat
+scheme
+	^ #http

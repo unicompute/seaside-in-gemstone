@@ -1,0 +1,28 @@
+{
+	"class" : {
+		"fromDays:" : "DataCurator 09/16/2008 16:30",
+		"fromISO8610Stream:" : "DataCurator 09/16/2008 16:30",
+		"fromISO8610String:" : "DataCurator 09/16/2008 16:30",
+		"integerOfLength:FromString:" : "DataCurator 09/16/2008 16:30",
+		"newDay:year:" : "DataCurator 09/16/2008 16:30",
+		"onDate:" : "DataCurator 09/16/2008 16:30",
+		"parseDateFromISO8601Stream:" : "DataCurator 09/16/2008 16:30",
+		"today" : "DataCurator 09/16/2008 16:30" },
+	"instance" : {
+		"<" : "DataCurator 09/16/2008 16:30",
+		"<=" : "DataCurator 09/16/2008 16:30",
+		"=" : "DataCurator 09/16/2008 16:30",
+		">" : "DataCurator 09/16/2008 16:30",
+		">=" : "DataCurator 09/16/2008 16:30",
+		"addDays:" : "DataCurator 09/16/2008 16:30",
+		"addYears:" : "DataCurator 09/16/2008 16:30",
+		"asDays" : "DataCurator 09/16/2008 16:30",
+		"asISO8610String" : "DataCurator 09/16/2008 16:30",
+		"asISO8610StringOn:" : "DataCurator 09/16/2008 16:30",
+		"hash" : "DataCurator 09/16/2008 16:30",
+		"julianDay" : "DataCurator 09/16/2008 16:30",
+		"max:" : "DataCurator 09/16/2008 16:30",
+		"min:" : "DataCurator 09/16/2008 16:30",
+		"onDate:" : "DataCurator 09/16/2008 16:30",
+		"underlyingDate" : "DataCurator 09/16/2008 16:30",
+		"year" : "DataCurator 09/16/2008 16:30" } }

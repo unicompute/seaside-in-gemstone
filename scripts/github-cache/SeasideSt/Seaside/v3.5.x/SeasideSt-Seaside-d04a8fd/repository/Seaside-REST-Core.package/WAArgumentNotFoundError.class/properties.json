@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WAError",
+	"category" : "Seaside-REST-Core-Route",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAArgumentNotFoundError",
+	"type" : "normal"
+}

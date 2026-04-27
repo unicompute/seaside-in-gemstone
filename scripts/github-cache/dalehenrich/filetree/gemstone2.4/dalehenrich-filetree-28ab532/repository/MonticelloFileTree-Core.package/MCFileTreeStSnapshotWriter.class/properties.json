@@ -1,0 +1,15 @@
+{
+	"category" : "MonticelloFileTree-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"classDefinitions",
+		"methodDefinitions" ],
+	"name" : "MCFileTreeStSnapshotWriter",
+	"pools" : [
+		 ],
+	"super" : "MCFileTreeAbstractStWriter",
+	"type" : "normal" }

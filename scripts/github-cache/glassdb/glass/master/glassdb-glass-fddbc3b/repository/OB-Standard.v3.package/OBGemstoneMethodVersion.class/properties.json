@@ -1,0 +1,18 @@
+{
+	"category" : "OB-Standard-Utilities",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"record",
+		"classRef",
+		"category",
+		"stamp",
+		"selector" ],
+	"name" : "OBGemstoneMethodVersion",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

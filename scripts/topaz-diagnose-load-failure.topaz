@@ -1,0 +1,57 @@
+! Diagnose the actual MessageNotUnderstood raised during Seaside / Metacello loads.
+! Edit the login values to match your local stone before running.
+!
+! Example:
+!   topaz -l < /Users/tariq/src/gemtools/seaside-in-gemstone/scripts/topaz-diagnose-load-failure.topaz
+
+!set user DataCurator pass swordfish
+!set gemstone gs64stone
+!set gemnetid !#netldi:gs64ldi!gemnetobject
+
+!login
+
+run
+System gemConfigurationAt: #GemExceptionSignalCapturesStack put: true.
+'GemExceptionSignalCapturesStack enabled'
+%
+
+run
+[ 
+Gofer new
+	package: 'GsUpgrader-Core';
+	url: 'http://ss3.gemtalksystems.com/ss/gsUpgrader';
+	load.
+(System myUserProfile objectNamed: 'GsUpgrader') upgradeGrease.
+'Gofer/GsUpgrader load succeeded'
+]
+	on: MessageNotUnderstood
+	do: [ :ex |
+		| stream |
+		stream := WriteStream on: String new.
+		stream
+			nextPutAll: 'description = ';
+			nextPutAll: ex description;
+			cr;
+			nextPutAll: 'exceptionClass = ';
+			nextPutAll: ex class printString;
+			cr;
+			nextPutAll: 'receiverClass = ';
+			nextPutAll: ex receiver class printString;
+			cr;
+			nextPutAll: 'receiver = ';
+			nextPutAll: ex receiver printString;
+			cr;
+			nextPutAll: 'selector = ';
+			nextPutAll: ex message selector printString;
+			cr;
+			nextPutAll: 'arguments = ';
+			nextPutAll: ex message arguments printString;
+			cr;
+			nextPutAll: 'stackReport =';
+			cr;
+			nextPutAll: (ex stackReport ifNil: [ 'nil' ]).
+		stream contents ].
+%
+
+logout
+quit

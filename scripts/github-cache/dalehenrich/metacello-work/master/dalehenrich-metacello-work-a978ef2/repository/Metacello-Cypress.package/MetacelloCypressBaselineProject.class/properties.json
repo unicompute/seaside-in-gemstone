@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "CyrilFerlicot 2/8/2018 15:56",
+	"super" : "MetacelloMCBaselineProject",
+	"category" : "Metacello-Cypress",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [
+		"UseCypressPackagesForAllBaselines"
+	],
+	"instvars" : [ ],
+	"name" : "MetacelloCypressBaselineProject",
+	"type" : "normal"
+}

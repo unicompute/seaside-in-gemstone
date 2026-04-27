@@ -1,0 +1,19 @@
+{
+	"category" : "Zinc-SSO-OAuth2-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "<historical>",
+	"instvars" : [
+		"consumerData",
+		"redirectUrl",
+		"scopes",
+		"accessToken",
+		"tokenType",
+		"refreshToken" ],
+	"name" : "ZnOAuth2Session",
+	"pools" : [
+		 ],
+	"super" : "Object",
+	"type" : "normal" }

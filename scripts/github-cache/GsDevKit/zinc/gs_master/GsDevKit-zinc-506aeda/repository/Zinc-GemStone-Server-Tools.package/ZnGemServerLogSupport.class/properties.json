@@ -1,0 +1,15 @@
+{
+	"category" : "Zinc-GemStone-Server-Tools",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"enableCreateContinuations",
+		"gemServerExceptionSet" ],
+	"name" : "ZnGemServerLogSupport",
+	"pools" : [
+		 ],
+	"super" : "ZnLogSupport",
+	"type" : "normal" }

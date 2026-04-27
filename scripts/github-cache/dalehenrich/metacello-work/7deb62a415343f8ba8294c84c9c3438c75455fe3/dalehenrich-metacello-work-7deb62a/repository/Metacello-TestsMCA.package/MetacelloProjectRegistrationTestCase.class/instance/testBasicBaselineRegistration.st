@@ -1,0 +1,4 @@
+tests
+testBasicBaselineRegistration
+	registrationA baselineProjectSpec: baselineProjectSpec.
+	self checkRegistrationValidity

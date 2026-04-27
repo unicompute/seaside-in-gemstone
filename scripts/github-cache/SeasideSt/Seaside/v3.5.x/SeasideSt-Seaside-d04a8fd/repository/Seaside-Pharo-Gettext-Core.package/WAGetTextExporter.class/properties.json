@@ -1,0 +1,15 @@
+{
+	"commentStamp" : "",
+	"super" : "Object",
+	"category" : "Seaside-Pharo-Gettext-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"exportFile",
+		"stream",
+		"rbEnvironment"
+	],
+	"name" : "WAGetTextExporter",
+	"type" : "normal"
+}

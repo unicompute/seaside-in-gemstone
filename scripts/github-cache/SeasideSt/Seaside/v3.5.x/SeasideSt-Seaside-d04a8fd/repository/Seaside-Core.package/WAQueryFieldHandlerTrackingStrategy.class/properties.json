@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "JohanBrichau 8/25/2019 16:20",
+	"super" : "WAHandlerTrackingStrategy",
+	"category" : "Seaside-Core-RequestHandling",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAQueryFieldHandlerTrackingStrategy",
+	"type" : "normal"
+}

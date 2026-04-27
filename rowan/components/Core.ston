@@ -1,0 +1,12 @@
+RwSimpleProjectLoadComponentV2 {
+	#name : 'Core',
+	#condition : 'common',
+	#projectNames : [ ],
+	#componentNames : [ ],
+	#packageNames : [
+		'SeasideInGemStone-Model',
+		'SeasideInGemStone-Compatibility',
+		'SeasideInGemStone-App'
+	],
+	#comment : 'Core SeasideInGemStone application packages'
+}

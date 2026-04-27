@@ -1,0 +1,14 @@
+{
+	"category" : "MonticelloFileTree-Tests",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "MCFileTreeJsonTest",
+	"pools" : [
+		 ],
+	"super" : "MCFileTreeAbstractTest",
+	"type" : "normal" }

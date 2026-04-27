@@ -1,0 +1,4 @@
+signalling
+raiseSignal
+
+	^self signal

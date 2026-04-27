@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "PTNamed",
+	"category" : "Scriptaculous-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "SUEffect",
+	"type" : "normal"
+}

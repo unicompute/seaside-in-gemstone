@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "MCPackage",
+	"category" : "Metacello-TestsMCResources",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "MetacelloTestsMCPackage",
+	"type" : "normal"
+}

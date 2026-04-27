@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "JQWidget",
+	"category" : "JQuery-UI-Widgets",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "JQTabs",
+	"type" : "normal"
+}

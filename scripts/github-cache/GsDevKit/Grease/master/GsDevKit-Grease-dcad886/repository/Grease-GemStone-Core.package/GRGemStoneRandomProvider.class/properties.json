@@ -1,0 +1,14 @@
+{
+	"category" : "Grease-GemStone-Core",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "GRGemStoneRandomProvider",
+	"pools" : [
+		 ],
+	"super" : "GRObject",
+	"type" : "normal" }

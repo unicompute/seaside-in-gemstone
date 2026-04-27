@@ -1,0 +1,1 @@
+I am a hack so that we can load Seaside Pharo packages into Squeak.

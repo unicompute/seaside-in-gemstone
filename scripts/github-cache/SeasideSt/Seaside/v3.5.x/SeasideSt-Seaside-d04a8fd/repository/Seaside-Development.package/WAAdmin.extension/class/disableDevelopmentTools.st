@@ -1,0 +1,4 @@
+*seaside-development
+disableDevelopmentTools
+	self applicationDefaults removeParent: WADevelopmentConfiguration instance.
+	self clearConfigurationCaches

@@ -1,0 +1,13 @@
+{
+	"commentStamp" : "pmm 9/12/2018 14:40",
+	"super" : "WADocument",
+	"category" : "Seaside-JSON-Core-Base",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"jsonEncoder"
+	],
+	"name" : "WAJsonDocument",
+	"type" : "normal"
+}

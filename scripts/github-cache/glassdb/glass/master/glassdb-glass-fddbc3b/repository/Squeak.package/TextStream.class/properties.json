@@ -1,0 +1,14 @@
+{
+	"category" : "Squeak-Collections-Text",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "DataCurator 07/13/2010 15:39",
+	"instvars" : [
+		 ],
+	"name" : "TextStream",
+	"pools" : [
+		 ],
+	"super" : "WriteStream",
+	"type" : "normal" }

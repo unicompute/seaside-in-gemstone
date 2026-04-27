@@ -1,0 +1,15 @@
+{
+	"commentStamp" : "",
+	"super" : "WADecoration",
+	"category" : "Seaside-Development-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"plugins",
+		"showHalos",
+		"halos"
+	],
+	"name" : "WAToolDecoration",
+	"type" : "normal"
+}

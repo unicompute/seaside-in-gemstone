@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WADelegationFunctionalTest",
+	"category" : "Seaside-Tests-Flow-Functional",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAFlowDelegationFunctionalTest",
+	"type" : "normal"
+}

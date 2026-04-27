@@ -1,0 +1,27 @@
+RwLoadSpecificationV2 {
+	#specName : 'SeasideInGemStone-Tests',
+	#projectName : 'SeasideInGemStone',
+	#projectSpecFile : 'rowan/project.ston',
+	#componentNames : [
+		'Tests'
+	],
+	#groupNames : [ ],
+	#customConditionalAttributes : [ ],
+	#platformProperties : {
+		'gemstone' : {
+			'DataCurator' : {
+				#defaultUseSessionMethodsForExtensions : true,
+				#defaultSymbolDictName : 'UserGlobals'
+			},
+			'SystemUser' : {
+				#defaultUseSessionMethodsForExtensions : false,
+				#defaultSymbolDictName : 'UserGlobals'
+			},
+			'allusers' : {
+				#defaultUseSessionMethodsForExtensions : false,
+				#defaultSymbolDictName : 'UserGlobals'
+			}
+		}
+	},
+	#comment : 'Test Rowan load specification for the SeasideInGemStone Tonel project'
+}

@@ -1,0 +1,14 @@
+{
+	"category" : "OB-Standard-Announcements",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		 ],
+	"name" : "OBShowHierarchyImplementors",
+	"pools" : [
+		 ],
+	"super" : "OBNavigate",
+	"type" : "normal" }

@@ -1,0 +1,12 @@
+{
+	"class" : {
+		 },
+	"instance" : {
+		"testDelete" : "SvenVanCaekenberghe 8/23/2012 14:34",
+		"testGetSmallHTMLDocument" : "SvenVanCaekenberghe 8/23/2012 14:34",
+		"testHeadSmallHTMLDocument" : "SvenVanCaekenberghe 7/4/2012 17:33",
+		"testPost" : "SvenVanCaekenberghe 8/23/2012 14:34",
+		"testPostUnicodeUtf8" : "SvenVanCaekenberghe 8/23/2012 14:34",
+		"testPut" : "SvenVanCaekenberghe 8/23/2012 14:34",
+		"testTimeout" : "SvenVanCaekenberghe 3/12/2012 21:07",
+		"withServerDo:" : "dkh 06/29/2014 11:02" } }

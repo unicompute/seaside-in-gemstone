@@ -1,0 +1,1 @@
+TDTxtLeafNode {	#name : 'analysis',	#contents : Text {		#string : '==============================\r==============================\r',		#runs : RunArray {			#runs : [				62			],			#values : [				[					TextEmphasis {						#emphasisCode : 1,						#setMode : true					}				]			],			#lastIndex : 32,			#lastRun : 1,			#lastOffset : 31		}	}}

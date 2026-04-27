@@ -1,0 +1,9 @@
+{
+	"class" : {
+		"isAbstract" : "dkh 12/04/2014 06:23" },
+	"instance" : {
+		"createClientFor:" : "dkh 12/04/2014 06:22",
+		"tearDown" : "dkh 12/04/2014 06:23",
+		"testPostSum" : "dkh 12/04/2014 06:20",
+		"testQuerySum" : "dkh 12/04/2014 06:20",
+		"testUriSum" : "dkh 12/04/2014 06:20" } }

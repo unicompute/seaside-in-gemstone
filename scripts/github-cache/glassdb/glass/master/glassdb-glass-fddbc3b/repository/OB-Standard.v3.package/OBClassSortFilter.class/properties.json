@@ -1,0 +1,15 @@
+{
+	"category" : "OB-Standard-Filters",
+	"classinstvars" : [
+		 ],
+	"classvars" : [
+		 ],
+	"commentStamp" : "",
+	"instvars" : [
+		"indents",
+		"order" ],
+	"name" : "OBClassSortFilter",
+	"pools" : [
+		 ],
+	"super" : "OBFilter",
+	"type" : "normal" }

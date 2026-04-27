@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "WARestfulFilter",
+	"category" : "Seaside-Tests-REST-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "WAStubFilter",
+	"type" : "normal"
+}

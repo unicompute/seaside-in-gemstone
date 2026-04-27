@@ -1,0 +1,11 @@
+{
+	"commentStamp" : "",
+	"super" : "JSObjectTest",
+	"category" : "Comet-Tests-Core",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [ ],
+	"name" : "CTCometTest",
+	"type" : "normal"
+}

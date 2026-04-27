@@ -1,0 +1,14 @@
+{
+	"commentStamp" : "<historical>",
+	"super" : "Object",
+	"category" : "Metacello-ToolBox",
+	"classinstvars" : [ ],
+	"pools" : [ ],
+	"classvars" : [ ],
+	"instvars" : [
+		"project",
+		"methodSpec"
+	],
+	"name" : "MetacelloToolBox",
+	"type" : "normal"
+}
