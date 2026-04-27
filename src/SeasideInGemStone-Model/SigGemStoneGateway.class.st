@@ -587,12 +587,34 @@ SigGemStoneGateway >> performStepSelector: aSelector onProcess: aProcess level: 
 
 { #category : 'private' }
 SigGemStoneGateway >> restartDebugFrameLevelForSession: aSession selectedLevel: aLevel [
-	| executedFrame frames |
+	| executedFrame frames workspaceSelector wrapperFrame wrapperFrames |
 	frames := aSession at: #lastFrames ifAbsent: [ #() ].
 	executedFrame := frames
 		detect: [ :each | self stackFrameIsWorkspaceExecutedCode: each ]
 		ifNone: [ nil ].
-	executedFrame ifNotNil: [ ^ executedFrame at: #level ifAbsent: [ aLevel ifNil: [ 1 ] ] ].
+	executedFrame ifNotNil: [
+		workspaceSelector := self stackFrameWorkspaceSelectorNameFor: executedFrame.
+		wrapperFrames := frames
+			select: [ :each |
+				((each at: #level ifAbsent: [ 0 ]) > (executedFrame at: #level ifAbsent: [ 0 ]))
+					and: [
+						(each at: #className ifAbsent: [ '' ]) = 'SigWorkspaceEvaluator'
+							and: [
+								workspaceSelector isNil
+									ifTrue: [ (self stackFrameWorkspaceSelectorNameFor: each) notNil ]
+									ifFalse: [ (self stackFrameWorkspaceSelectorNameFor: each) = workspaceSelector ] ] ] ].
+		wrapperFrame := wrapperFrames
+			ifEmpty: [ nil ]
+			ifNotEmpty: [
+				wrapperFrames
+					inject: wrapperFrames first
+					into: [ :deepest :each |
+						((each at: #level ifAbsent: [ 0 ]) > (deepest at: #level ifAbsent: [ 0 ]))
+							ifTrue: [ each ]
+							ifFalse: [ deepest ] ] ].
+		wrapperFrame ifNotNil: [
+			^ wrapperFrame at: #level ifAbsent: [ executedFrame at: #level ifAbsent: [ aLevel ifNil: [ 1 ] ] ] ].
+		^ executedFrame at: #level ifAbsent: [ aLevel ifNil: [ 1 ] ] ].
 	^ aLevel ifNil: [ 1 ]
 ]
 
@@ -612,11 +634,91 @@ SigGemStoneGateway >> restartDebugProcess: aProcess atLevel: aLevel session: aSe
 		[self rewindDebugProcessToStepOneIfNeeded: aProcess atLevel: restartLevel]
 			on: Error
 			do: [ ].
+		(self restartNeedsWorkspaceReplayForSession: aSession process: aProcess)
+			ifTrue: [ ^ self restartWorkspaceDebugSession: aSession ].
 		aSession at: #status put: #suspended ]
 		on: Error
 		do: [ :error |
 			aSession at: #status put: #terminated.
 			aSession at: #resultText put: (self errorTextFor: error) ]
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> restartNeedsWorkspaceReplayForSession: aSession process: aProcess [
+	| quickStepPoint sourceString |
+	aSession ifNil: [ ^ false ].
+	aProcess ifNil: [ ^ false ].
+	sourceString := aSession at: #sourceString ifAbsent: [ nil ].
+	sourceString ifNil: [ ^ false ].
+	quickStepPoint := self debugProcessQuickStepPointFor: aProcess atLevel: 1.
+	^ quickStepPoint notNil and: [ quickStepPoint > 1 ]
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> restartWorkspaceDebugSession: aSession [
+	| completionSemaphore completionSignaled outcome sessionHolder signaled sourceString |
+	aSession ifNil: [ ^ self ].
+	sourceString := aSession at: #sourceString ifAbsent: [ nil ].
+	sourceString ifNil: [ ^ self ].
+	self terminateDebugSession: aSession.
+	completionSemaphore := Semaphore new.
+	completionSignaled := Array with: false.
+	outcome := Dictionary new.
+	sessionHolder := Array with: aSession.
+	[
+		| result |
+		[
+			result := self workspaceValueFor: sourceString ]
+			on: (Halt , Error)
+			do: [ :error |
+				| session |
+				session := sessionHolder at: 1.
+				session := self
+					initializeDebugSessionForProcess: Processor activeProcess
+					error: error
+					source: sourceString
+					existingSession: session.
+				sessionHolder at: 1 put: session.
+				outcome at: #success put: false.
+				outcome at: #sessionId put: (session at: #id).
+				(completionSignaled at: 1) ifFalse: [
+					completionSignaled at: 1 put: true.
+					completionSemaphore signal ].
+				Processor activeProcess suspend.
+				error resume ].
+		(sessionHolder at: 1 ifAbsent: [ nil ]) ifNotNil: [ :session |
+			self markDebugSessionCompleted: session result: result ].
+		outcome at: #success put: true.
+		outcome at: #value put: result.
+		(completionSignaled at: 1) ifFalse: [
+			completionSignaled at: 1 put: true.
+			completionSemaphore signal ] ] fork.
+	signaled := completionSemaphore waitTimeoutMSecs: self workspaceSignalTimeoutMilliseconds.
+	signaled ifFalse: [
+		self terminateDebugSession: aSession.
+		aSession at: #status put: #terminated.
+		aSession at: #resultText put: 'Workspace restart timed out before debugger capture completed.'.
+		^ self ].
+	(outcome at: #success ifAbsent: [ true ]) ifFalse: [
+		| process restartLevel session |
+		session := sessionHolder at: 1 ifAbsent: [ nil ].
+		session ifNotNil: [
+			self waitForDebugProcessToStop: (self debugProcessForSession: session).
+			self refreshDebugSession: session.
+			process := self debugProcessForSession: session.
+			process ifNotNil: [
+				((self debugProcessQuickStepPointFor: process atLevel: 1) ifNil: [ 0 ]) > 1
+					ifTrue: [
+						restartLevel := self restartDebugFrameLevelForSession: session selectedLevel: 1.
+						(process respondsTo: #trimStackToLevel:)
+							ifTrue: [ process trimStackToLevel: restartLevel ]
+							ifFalse: [ process _trimStackToLevel: restartLevel ].
+						[self rewindDebugProcessToStepOneIfNeeded: process atLevel: restartLevel]
+							on: Error
+							do: [ ].
+						session at: #status put: #suspended.
+						self refreshDebugSession: session ] ].
+			self refreshLastErrorStateFromDebugSession: session ] ]
 ]
 
 { #category : 'private' }
@@ -688,6 +790,7 @@ SigGemStoneGateway >> initializeDebugSessionForProcess: aProcess error: anError 
 	session := aSession ifNil: [ self newDebugSessionForSource: sourceString ].
 	self storeDebugProcess: aProcess inSession: session.
 	session at: #status put: #running.
+	session removeKey: #resultText ifAbsent: [ ].
 	errorText := self errorTextFor: anError.
 	session at: #errorText put: errorText.
 	session at: #lastFrames put: #().
@@ -874,6 +977,26 @@ SigGemStoneGateway >> stackFrameClassNameForMethod: aMethod [
 					on: Error
 					do: [ nil ] ] ].
 	^ behavior ifNil: [ nil ] ifNotNil: [ behavior name asString ]
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> stackFrameWorkspaceSelectorNameFor: aFrameRecord [
+	| description marker selectorName start |
+	aFrameRecord ifNil: [ ^ nil ].
+	selectorName := (aFrameRecord at: #selectorName ifAbsent: [ nil ])
+		ifNil: [ nil ]
+		ifNotNil: [ :value | value asString ].
+	(selectorName notNil
+		and: [ selectorName ~= 'nil'
+			and: [ selectorName beginsWith: 'sigWorkspace' ] ])
+		ifTrue: [ ^ selectorName ].
+	description := (aFrameRecord at: #description ifAbsent: [ '' ]) asString.
+	marker := 'SigWorkspaceEvaluator >> '.
+	start := description findString: marker startingAt: 1.
+	start = 0 ifTrue: [ ^ nil ].
+	selectorName := (description copyFrom: start + marker size to: description size) withBlanksTrimmed.
+	(selectorName isEmpty or: [ selectorName = 'nil' ]) ifTrue: [ ^ nil ].
+	^ selectorName
 ]
 
 { #category : 'private' }

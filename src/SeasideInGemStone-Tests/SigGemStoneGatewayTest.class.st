@@ -23,6 +23,34 @@ SigGemStoneGatewayTest >> newSuspendedDebugSessionWithProcess: aProcess [
 	^ session
 ]
 
+{ #category : 'private' }
+SigGemStoneGatewayTest >> assertExecutedCodeFrameIn: aSnapshot quickStepPoint: expectedStep lineNumber: expectedLine [
+	| executedFrame |
+	executedFrame := (aSnapshot at: #frames)
+		detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+		ifNone: [ nil ].
+	self assert: executedFrame notNil.
+	self assert: (executedFrame at: #quickStepPoint ifAbsent: [ nil ]) equals: expectedStep.
+	self assert: (executedFrame at: #lineNumber ifAbsent: [ nil ]) equals: expectedLine
+]
+
+{ #category : 'private' }
+SigGemStoneGatewayTest >> assertRestartActionSequence: actions expectedExecutedLocations: expectedLocations onSource: sourceString [
+	| snapshot |
+	self assert: actions size equals: expectedLocations size.
+	gateway workspaceDoIt: sourceString.
+	actions with: expectedLocations do: [ :action :expectedLocation |
+		snapshot := gateway
+			performDebugAction: action
+			forSessionId: gateway lastDebugSessionId
+			atLevel: 1.
+		self
+			assertExecutedCodeFrameIn: snapshot
+			quickStepPoint: expectedLocation first
+			lineNumber: expectedLocation second ].
+	^ snapshot
+]
+
 { #category : 'tests' }
 SigGemStoneGatewayTest >> testBridgeRootCreatesLocalDictionary [
 	| root |
@@ -170,6 +198,99 @@ SigGemStoneGatewayTest >> testRestartKeepsDebuggerSessionControllable [
 ]
 
 { #category : 'tests' }
+SigGemStoneGatewayTest >> testRestartDebugFrameLevelPrefersWorkspaceWrapperFrame [
+	| level session |
+	session := Dictionary new
+		at: #lastFrames put: {
+			(Dictionary new
+				at: #level put: 1;
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'sigWorkspaceABC123';
+				at: #quickStepPoint put: 2;
+				at: #sourceText put: '1+1.', String lf, '1/0';
+				yourself).
+			(Dictionary new
+				at: #level put: 2;
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'sigWorkspaceABC123';
+				at: #quickStepPoint put: 2;
+				at: #sourceText put: 'sigWorkspaceABC123', String lf, '^ [', String lf, '1+1.', String lf, '1/0', String lf, '] value';
+				yourself) };
+		yourself.
+
+	level := gateway restartDebugFrameLevelForSession: session selectedLevel: 1.
+
+	self assert: level equals: 2
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRestartDebugFrameLevelPrefersDeepestWorkspaceWrapperFrame [
+	| level session |
+	session := Dictionary new
+		at: #lastFrames put: {
+			(Dictionary new
+				at: #level put: 1;
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #description put: '[] in SigWorkspaceEvaluator >> sigWorkspaceABC123';
+				at: #selectorName put: 'nil';
+				at: #quickStepPoint put: 4;
+				at: #sourceText put: '1+1.', String lf, '2+2.', String lf, '1/0';
+				at: #isExecutedCode put: true;
+				yourself).
+			(Dictionary new
+				at: #level put: 2;
+				at: #description put: 'SigWorkspaceEvaluator >> sigWorkspaceABC123';
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'sigWorkspaceABC123';
+				at: #quickStepPoint put: 2;
+				at: #sourceText put: 'sigWorkspaceABC123', String lf, '^ [', String lf, '1+1.', String lf, '2+2.', String lf, '1/0', String lf, '] value';
+				yourself).
+			(Dictionary new
+				at: #level put: 3;
+				at: #description put: 'SigWorkspaceEvaluator >> sigWorkspaceABC123';
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'sigWorkspaceABC123';
+				at: #quickStepPoint put: 2;
+				at: #sourceText put: 'sigWorkspaceABC123', String lf, '^ [', String lf, '1+1.', String lf, '2+2.', String lf, '1/0', String lf, '] value';
+				yourself) };
+		yourself.
+
+	level := gateway restartDebugFrameLevelForSession: session selectedLevel: 1.
+
+	self assert: level equals: 3
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRestartDebugFrameLevelMatchesWorkspaceSelectorFromExecutedFrameDescription [
+	| level session |
+	session := Dictionary new
+		at: #lastFrames put: {
+			(Dictionary new
+				at: #level put: 1;
+				at: #description put: '[] in SigWorkspaceEvaluator >> sigWorkspaceXYZ987';
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'nil';
+				at: #lineNumber put: 3;
+				at: #quickStepPoint put: 4;
+				at: #sourceText put: '1+1.', String lf, '2+2.', String lf, '1/0';
+				at: #isExecutedCode put: true;
+				yourself).
+			(Dictionary new
+				at: #level put: 2;
+				at: #description put: 'SigWorkspaceEvaluator >> sigWorkspaceXYZ987';
+				at: #className put: 'SigWorkspaceEvaluator';
+				at: #selectorName put: 'sigWorkspaceXYZ987';
+				at: #quickStepPoint put: 2;
+				at: #sourceText put: 'sigWorkspaceXYZ987', String lf, '^ [', String lf, '1+1.', String lf, '2+2.', String lf, '1/0', String lf, '] value';
+				yourself) };
+		yourself.
+
+	level := gateway restartDebugFrameLevelForSession: session selectedLevel: 1.
+
+	self assert: level equals: 2
+]
+
+{ #category : 'tests' }
 SigGemStoneGatewayTest >> testRestartResetsExecutedCodeFrameToStepOne [
 	| executedFrame snapshot |
 	gateway workspaceDoIt: '1 / 0'.
@@ -189,6 +310,68 @@ SigGemStoneGatewayTest >> testRestartResetsExecutedCodeFrameToStepOne [
 	self assert: executedFrame notNil.
 	self assert: (executedFrame at: #quickStepPoint ifAbsent: [ nil ]) equals: 1.
 	self assert: (executedFrame at: #lineNumber ifAbsent: [ nil ]) equals: 1
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRestartAfterMultipleStepsRewindsExecutedCodeFrameToStepOne [
+	| executedFrame snapshot |
+	gateway workspaceDoIt: '1+1.', String lf, '2+2.', String lf, '1/0'.
+	gateway
+		performDebugAction: #restart
+		forSessionId: gateway lastDebugSessionId
+		atLevel: 1.
+	gateway
+		performDebugAction: #step
+		forSessionId: gateway lastDebugSessionId
+		atLevel: 1.
+	gateway
+		performDebugAction: #step
+		forSessionId: gateway lastDebugSessionId
+		atLevel: 1.
+	snapshot := gateway
+		performDebugAction: #restart
+		forSessionId: gateway lastDebugSessionId
+		atLevel: 1.
+
+	executedFrame := (snapshot at: #frames)
+		detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+		ifNone: [ nil ].
+	self assert: executedFrame notNil.
+	self assert: (executedFrame at: #quickStepPoint ifAbsent: [ nil ]) equals: 1.
+	self assert: (executedFrame at: #lineNumber ifAbsent: [ nil ]) equals: 1
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRepeatedRestartSequenceOnFourLineWorkspace [
+	| snapshot |
+	snapshot := self
+		assertRestartActionSequence: #(restart step step step restart restart step restart)
+		expectedExecutedLocations: #((1 1) (2 1) (4 3) (5 4) (1 1) (1 1) (2 1) (1 1))
+		onSource: '1+1.', String lf, '2+2.', String lf, '3+3.', String lf, '1/0'.
+
+	self assert: (snapshot at: #sessionStatusText) equals: 'Debug process suspended.'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRepeatedRestartSequenceOnThreeLineWorkspace [
+	| snapshot |
+	snapshot := self
+		assertRestartActionSequence: #(restart restart step step restart restart step restart)
+		expectedExecutedLocations: #((1 1) (1 1) (2 1) (4 3) (1 1) (1 1) (2 1) (1 1))
+		onSource: '1+1.', String lf, '2+2.', String lf, '1/0'.
+
+	self assert: (snapshot at: #sessionStatusText) equals: 'Debug process suspended.'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testRepeatedRestartSequenceOnTwoLineWorkspace [
+	| snapshot |
+	snapshot := self
+		assertRestartActionSequence: #(restart restart step restart restart step restart restart)
+		expectedExecutedLocations: #((1 1) (1 1) (2 1) (1 1) (1 1) (2 1) (1 1) (1 1))
+		onSource: '1+1.', String lf, '1/0'.
+
+	self assert: (snapshot at: #sessionStatusText) equals: 'Debug process suspended.'
 ]
 
 { #category : 'tests' }
