@@ -168,16 +168,17 @@ SigExplorerApplication >> debuggerFrameListScrollKeyForState: aState [
 
 { #category : 'private' }
 SigExplorerApplication >> debuggerFrameSourceLineNumberFor: aFrame [
-	| lineCount lineNumber sourceLineNumber sourceText |
+	| cursorLocation lineCount lineNumber sourceLineNumber sourceText |
 	aFrame ifNil: [ ^ nil ].
 	sourceText := aFrame at: #sourceText ifAbsent: [ nil ].
 	lineCount := (self debuggerSourceLinesFor: sourceText) size.
+	cursorLocation := self debuggerFrameSourceCursorLocationFor: aFrame.
+	cursorLocation ifNotNil: [
+		^ ((cursorLocation first max: 1) min: lineCount) ].
 	lineNumber := aFrame at: #lineNumber ifAbsent: [ nil ].
-	(lineNumber notNil and: [ lineNumber between: 1 and: lineCount ])
-		ifTrue: [ ^ lineNumber ].
+	lineNumber ifNotNil: [ ^ ((lineNumber max: 1) min: lineCount) ].
 	sourceLineNumber := aFrame at: #sourceLineNumber ifAbsent: [ nil ].
-	(sourceLineNumber notNil and: [ sourceLineNumber between: 1 and: lineCount ])
-		ifTrue: [ ^ sourceLineNumber ].
+	sourceLineNumber ifNotNil: [ ^ ((sourceLineNumber max: 1) min: lineCount) ].
 	^ nil
 ]
 
@@ -269,35 +270,92 @@ SigExplorerApplication >> debuggerFrameReceiverTextFor: aFrame [
 
 { #category : 'private' }
 SigExplorerApplication >> debuggerFrameSourceMetaTextFor: aFrame [
+	^ self debuggerFrameSourceMetaTextFor: aFrame position: 0 count: 0
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerFrameSourceMetaTextFor: aFrame position: framePosition count: frameCount [
 	| ipOffset lineNumber quickStepPoint sourceLineNumber stream |
 	aFrame ifNil: [ ^ 'Select a frame to see source metadata.' ].
 	stream := WriteStream on: String new.
 	quickStepPoint := aFrame at: #quickStepPoint ifAbsent: [ nil ].
 	lineNumber := self debuggerFrameSourceLineNumberFor: aFrame.
-	ipOffset := aFrame at: #ipOffset ifAbsent: [ nil ].
+	ipOffset := aFrame
+		at: #sourceOffset
+		ifAbsent: [ aFrame at: #ipOffset ifAbsent: [ nil ] ].
 	sourceLineNumber := aFrame at: #sourceLineNumber ifAbsent: [ nil ].
+	(framePosition > 0 and: [ frameCount > 0 ]) ifTrue: [
+		stream
+			nextPutAll: 'Frame ';
+			nextPutAll: framePosition printString;
+			nextPut: $/;
+			nextPutAll: frameCount printString ].
 	quickStepPoint ifNotNil: [
+		stream position > 0 ifTrue: [ stream nextPutAll: ' • ' ].
 		stream
 			nextPutAll: 'Step ';
 			nextPutAll: quickStepPoint printString ].
 	lineNumber ifNotNil: [
-		stream position > 0 ifTrue: [ stream nextPutAll: ' | ' ].
+		stream position > 0 ifTrue: [ stream nextPutAll: ' • ' ].
 		stream
 			nextPutAll: 'Line ';
 			nextPutAll: lineNumber printString ].
 	ipOffset ifNotNil: [
-		stream position > 0 ifTrue: [ stream nextPutAll: ' | ' ].
+		stream position > 0 ifTrue: [ stream nextPutAll: ' • ' ].
 		stream
-			nextPutAll: 'PC ';
+			nextPutAll: 'Offset ';
 			nextPutAll: ipOffset printString ].
 	sourceLineNumber ifNotNil: [
-		stream position > 0 ifTrue: [ stream nextPutAll: ' | ' ].
+		stream position > 0 ifTrue: [ stream nextPutAll: ' • ' ].
 		stream
 			nextPutAll: 'File line ';
 			nextPutAll: sourceLineNumber printString ].
 	^ stream position = 0
 		ifTrue: [ 'Source metadata unavailable.' ]
 		ifFalse: [ stream contents ]
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerFrameSourceCursorLocationFor: aFrame [
+	| offset rawOffset sourceOffsets sourceText stepPoint |
+	aFrame ifNil: [ ^ nil ].
+	sourceText := aFrame at: #sourceText ifAbsent: [ nil ].
+	sourceOffsets := aFrame at: #sourceOffsets ifAbsent: [ nil ].
+	stepPoint := aFrame at: #quickStepPoint ifAbsent: [ nil ].
+	(sourceText isNil or: [ sourceText isEmpty ]) ifTrue: [ ^ nil ].
+	(sourceOffsets isNil or: [ stepPoint isNil ]) ifTrue: [ ^ nil ].
+	stepPoint := [ stepPoint asInteger ] on: Error do: [ nil ].
+	(stepPoint isNil or: [ stepPoint <= 0 ]) ifTrue: [ ^ nil ].
+	rawOffset := sourceOffsets at: stepPoint ifAbsent: [ nil ].
+	rawOffset ifNil: [ ^ nil ].
+	offset := [ rawOffset asInteger ] on: Error do: [ nil ].
+	offset ifNil: [ ^ nil ].
+	offset < 1 ifTrue: [ offset := 1 ].
+	offset > sourceText size + 1 ifTrue: [ offset := sourceText size + 1 ].
+	^ self
+		debuggerSourceCursorLocationIn: sourceText
+		atOffset: offset
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerDefaultCursorColumnForLine: aString [
+	| lineText |
+	lineText := aString ifNil: [ '' ].
+	lineText isEmpty ifTrue: [ ^ 1 ].
+	1 to: lineText size do: [ :index |
+		((lineText at: index) isSeparator)
+			ifFalse: [ ^ index ] ].
+	^ 1
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerFrameStepCursorLabelFor: aFrame [
+	| stepPoint |
+	aFrame ifNil: [ ^ '>' ].
+	stepPoint := aFrame at: #quickStepPoint ifAbsent: [ nil ].
+	^ stepPoint
+		ifNil: [ '>' ]
+		ifNotNil: [ 'S', stepPoint printString ]
 ]
 
 { #category : 'private' }
@@ -405,6 +463,23 @@ SigExplorerApplication >> debuggerSourceLinesFor: aString [
 	^ lines isEmpty
 		ifTrue: [ #('') ]
 		ifFalse: [ lines asArray ]
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerSourceCursorLocationIn: sourceText atOffset: offsetInteger [
+	| lineIndex resolvedOffset |
+	sourceText ifNil: [ ^ nil ].
+	resolvedOffset := offsetInteger ifNil: [ ^ nil ].
+	lineIndex := 0.
+	sourceText lineIndicesDo: [ :start :endWithoutDelimiters :end |
+		| caretColumn lineLength |
+		lineIndex := lineIndex + 1.
+		lineLength := (endWithoutDelimiters - start + 1) max: 0.
+		(resolvedOffset between: start and: endWithoutDelimiters + 1)
+			ifTrue: [
+				caretColumn := (resolvedOffset - start + 1) min: lineLength + 1.
+				^ { lineIndex. caretColumn max: 1 } ] ].
+	^ nil
 ]
 
 { #category : 'private' }
@@ -2020,11 +2095,6 @@ SigExplorerApplication >> renderDebuggerLiveCommandsOn: html state: aState [
 			callback: [ self performDebuggerAction: #resume inState: aState ].
 		self
 			renderDebuggerLiveActionOn: html
-			label: 'Restart'
-			enabled: (aState at: #canRestart ifAbsent: [ false ])
-			callback: [ self performDebuggerAction: #restart inState: aState ].
-		self
-			renderDebuggerLiveActionOn: html
 			label: 'Step'
 			enabled: (aState at: #canStepInto ifAbsent: [ false ])
 			callback: [ self performDebuggerAction: #step inState: aState ].
@@ -2045,6 +2115,11 @@ SigExplorerApplication >> renderDebuggerLiveCommandsOn: html state: aState [
 			callback: [ self performDebuggerAction: #stepReturn inState: aState ].
 		self
 			renderDebuggerLiveActionOn: html
+			label: 'Restart'
+			enabled: (aState at: #canRestart ifAbsent: [ false ])
+			callback: [ self performDebuggerAction: #restart inState: aState ].
+		self
+			renderDebuggerLiveActionOn: html
 			label: 'Terminate'
 			enabled: (aState at: #canTerminate ifAbsent: [ false ])
 			callback: [ self performDebuggerAction: #terminate inState: aState ] ].
@@ -2054,29 +2129,57 @@ SigExplorerApplication >> renderDebuggerLiveCommandsOn: html state: aState [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderDebuggerContentsOn: html state: aState [
-	| selectedFrame |
-	selectedFrame := self selectedDebuggerFrameInState: aState.
 	html div
 		class: 'sig-debugger-shell';
+		attributeAt: 'data-sig-tab-scope' put: 'debugger';
 		with: [
-			html div class: 'dbg-summary'; with: [
-				html div class: 'dbg-summary-source'; with: (self debuggerFrameSourceStatusTextFor: selectedFrame).
-				html div class: 'dbg-summary-error'; with: (aState at: #errorText ifAbsent: [ 'No gateway errors recorded.' ]) ].
-			self renderDebuggerFramesOn: html state: aState.
-			self renderDebuggerCommandsOn: html state: aState.
-			self renderDebuggerLiveCommandsOn: html state: aState.
-			self renderDebuggerFrameDetailsOn: html state: aState.
-			self renderDebuggerDiagnosticsOn: html state: aState ]
+			html div class: 'tab-strip'; with: [
+				html div
+					class: 'tab-item active';
+					attributeAt: 'data-sig-tab' put: 'stack';
+					with: 'Stack Trace'.
+				html div
+					class: 'tab-item';
+					attributeAt: 'data-sig-tab' put: 'diagnostics';
+					with: 'Thread Local Storage' ].
+			html div
+				class: 'sig-debugger-tab-panel active';
+				attributeAt: 'data-sig-tab-panel' put: 'stack';
+				with: [
+					| selectedFrame |
+					selectedFrame := self selectedDebuggerFrameInState: aState.
+					html div class: 'dbg-summary'; with: [
+						html div class: 'dbg-summary-source'; with: (self debuggerFrameSourceStatusTextFor: selectedFrame).
+						html div class: 'dbg-summary-error'; with: (aState at: #errorText ifAbsent: [ 'No gateway errors recorded.' ]) ].
+					self renderDebuggerFramesOn: html state: aState.
+					self renderDebuggerLiveCommandsOn: html state: aState.
+					self renderDebuggerFrameDetailsOn: html state: aState ].
+			html div
+				class: 'sig-debugger-tab-panel';
+				attributeAt: 'data-sig-tab-panel' put: 'diagnostics';
+				with: [
+					self renderDebuggerCommandsOn: html state: aState.
+					self renderDebuggerDiagnosticsOn: html state: aState ] ]
 ]
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderDebuggerFrameDetailsOn: html state: aState [
-	| selectedFrame |
+	| frameCount framePosition selectedFrame visibleFrames |
 	selectedFrame := self selectedDebuggerFrameInState: aState.
+	visibleFrames := self debuggerVisibleFramesInState: aState.
+	frameCount := visibleFrames size.
+	framePosition := selectedFrame
+		ifNil: [ 0 ]
+		ifNotNil: [ visibleFrames indexOf: selectedFrame ifAbsent: [ 0 ] ].
 	html div class: 'dbg-source-pane'; with: [
-		html div class: 'dbg-source-meta'; with: (self debuggerFrameSourceMetaTextFor: selectedFrame).
+		html div
+			class: 'dbg-source-meta';
+			with: (self
+				debuggerFrameSourceMetaTextFor: selectedFrame
+				position: framePosition
+				count: frameCount).
 	html div
-		class: 'dbg-source-code sig-scroll-pane sig-debugger-pane sig-debugger-source-pane';
+		class: 'dbg-source-code';
 		attributeAt: 'data-sig-scroll-follow' put: 'selected';
 		attributeAt: 'data-sig-scroll-key' put: (self debuggerSourceScrollKeyForState: aState);
 		with: [
@@ -2155,31 +2258,79 @@ SigExplorerApplication >> renderDebuggerFramesOn: html state: aState [
 									html span
 										class: (isBridge ifTrue: [ 'dbg-frame-icon ruby' ] ifFalse: [ 'dbg-frame-icon' ]);
 										with: (isBridge ifTrue: [ 'R' ] ifFalse: [ 'S' ]).
-									html span class: 'sig-debugger-frame-level'; with: frameLevel printString.
 									html span class: 'sig-debugger-frame-text'; with: (self debuggerFrameSummaryFor: each) ] ] ] ] ] ]
 ]
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderDebuggerSourceOn: html frame: aFrame [
-	| currentLineNumber lines sourceText |
+	| currentLineNumber cursorLocation lines sourceText |
 	sourceText := self debuggerFrameSourceTextFor: aFrame.
 	((aFrame isNil) or: [ sourceText = 'Source unavailable for this frame.' ]) ifTrue: [
 		html preformatted class: 'sig-pre'; with: sourceText.
 		^ self ].
 	lines := self debuggerSourceLinesFor: sourceText.
 	currentLineNumber := self debuggerFrameSourceLineNumberFor: aFrame.
+	cursorLocation := self debuggerFrameSourceCursorLocationFor: aFrame.
+	(currentLineNumber isNil and: [ cursorLocation notNil ]) ifTrue: [
+		currentLineNumber := cursorLocation first ].
 	html div class: 'sig-debugger-source-lines'; with: [
 		1 to: lines size do: [ :index |
+			| cursorColumn isCurrentLine |
+			isCurrentLine := index = currentLineNumber.
+			cursorColumn := ((cursorLocation notNil and: [ cursorLocation first = index ])
+				ifTrue: [ cursorLocation second ]
+				ifFalse: [
+					isCurrentLine
+						ifTrue: [ self debuggerDefaultCursorColumnForLine: (lines at: index) ]
+						ifFalse: [ nil ] ]).
 			html div
-				class: (index = currentLineNumber
+				class: (isCurrentLine
 					ifTrue: [ 'dbg-source-line sig-debugger-source-line current selected active' ]
 					ifFalse: [ 'dbg-source-line sig-debugger-source-line' ]);
 				with: [
-					html span class: 'dbg-source-marker'; with: (index = currentLineNumber ifTrue: [ '>' ] ifFalse: [ ' ' ]).
-					html span class: 'sig-debugger-source-gutter'; with: index printString.
-					html preformatted
-						class: 'sig-pre dbg-source-text sig-debugger-source-code';
-						with: (lines at: index) ] ] ]
+					html span class: 'dbg-source-marker'; with: [
+						isCurrentLine
+							ifTrue: [
+								html span
+									class: 'dbg-step-cursor';
+									with: (self debuggerFrameStepCursorLabelFor: aFrame) ]
+							ifFalse: [
+								html span
+									class: 'dbg-step-cursor-spacer';
+									with: ' ' ] ].
+					html span class: 'dbg-source-lno'; with: index printString.
+					self
+						renderDebuggerSourceTextOn: html
+						line: (lines at: index)
+						cursorColumn: cursorColumn ] ] ]
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderDebuggerSourceTextOn: html line: aString cursorColumn: anInteger [
+	| after before caretColumn lineText |
+	lineText := aString ifNil: [ '' ].
+	anInteger ifNil: [
+		html span
+			class: 'dbg-source-text';
+			with: lineText.
+		^ self ].
+	caretColumn := anInteger max: 1.
+	caretColumn := caretColumn min: lineText size + 1.
+	before := caretColumn <= 1
+		ifTrue: [ '' ]
+		ifFalse: [ lineText copyFrom: 1 to: caretColumn - 1 ].
+	after := caretColumn > lineText size
+		ifTrue: [ '' ]
+		ifFalse: [ lineText copyFrom: caretColumn to: lineText size ].
+	html span
+		class: 'dbg-source-text';
+		with: [
+			before isEmpty ifFalse: [ html text: before ].
+			html span
+				class: 'dbg-inline-cursor';
+				attributeAt: 'aria-label' put: 'Next instruction';
+				with: '|'.
+			after isEmpty ifFalse: [ html text: after ] ]
 ]
 
 { #category : 'rendering' }
@@ -2384,7 +2535,6 @@ SigExplorerApplication >> renderInspectorOn: html [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderSessionOn: html [
-	html paragraph class: 'sig-window-note'; with: 'A compact session window inspired by the client-side GemStone tools: connection state, transaction commands, and current navigation focus.'.
 	html div class: 'sig-command-row'; with: [
 		self renderActionLinkOn: html label: 'Refresh' callback: [ self refresh ].
 		self renderActionLinkOn: html label: 'Commit' callback: [ self commitTransaction ].
@@ -2540,7 +2690,6 @@ SigExplorerApplication >> renderWorkspaceMenuItemsOn: html [
 { #category : 'rendering' }
 SigExplorerApplication >> renderTranscriptOn: html [
 	html div class: 'sig-transcript-shell'; with: [
-		html paragraph class: 'sig-window-note'; with: 'Transcript follows recent desktop activity, much like the client-side Jade and Jasper tools.'.
 		html div class: 'sig-command-row'; with: [
 			self renderActionLinkOn: html label: 'Clear Transcript' callback: [ self clearTranscript ].
 			self renderActionLinkOn: html label: 'Capture Walkback' callback: [ self captureDebuggerSnapshot ] ].
@@ -2837,7 +2986,6 @@ SigExplorerApplication >> transcriptPreviewOf: aString [
 SigExplorerApplication >> renderSymbolListBrowserOn: html [
 	| association |
 	association := self selectedSymbolListAssociation.
-	html paragraph class: 'sig-window-note'; with: 'Browse the current session symbol list in dictionary order, then inspect live bindings.'.
 	html div class: 'sig-symbol-list-grid'; with: [
 		self
 			renderBrowserColumnOn: html
@@ -2893,6 +3041,7 @@ SigExplorerApplication >> stylesheet [
 	--sig-surface-1: rgba(30, 30, 46, 0.96);
 	--sig-surface-2: rgba(49, 50, 68, 0.94);
 	--sig-surface-3: rgba(17, 17, 27, 0.82);
+	--sig-surface-4: rgba(12, 12, 20, 0.92);
 	--sig-window-bg: rgba(30, 30, 46, 0.96);
 	--sig-window-border: rgba(69, 71, 90, 0.98);
 	--sig-border: rgba(88, 91, 112, 0.88);
@@ -2906,6 +3055,9 @@ SigExplorerApplication >> stylesheet [
 	--sig-warning: #f9e2af;
 	--sig-danger: #f38ba8;
 	--sig-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+	--sig-panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+	--sig-window-glow: 0 24px 56px rgba(0, 0, 0, 0.52);
+	--sig-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 html,
@@ -2914,13 +3066,16 @@ body {
 }
 
 body {
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: "SF Pro Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	margin: 0;
 	color: var(--sig-text);
 	background:
-		radial-gradient(circle at top left, rgba(137, 180, 250, 0.14), transparent 24rem),
-		radial-gradient(circle at bottom right, rgba(203, 166, 247, 0.10), transparent 24rem),
-		linear-gradient(180deg, #11111b 0%, #181825 45%, #11111b 100%);
+		radial-gradient(circle at top left, rgba(137, 180, 250, 0.16), transparent 24rem),
+		radial-gradient(circle at 78% 18%, rgba(116, 199, 236, 0.08), transparent 22rem),
+		radial-gradient(circle at bottom right, rgba(203, 166, 247, 0.11), transparent 24rem),
+		linear-gradient(180deg, #0d0e16 0%, #181825 38%, #10111a 100%);
+	background-attachment: fixed;
+	letter-spacing: 0.01em;
 }
 
 body.sig-dragging {
@@ -2945,20 +3100,20 @@ a:hover {
 	z-index: 2000;
 	display: grid;
 	grid-template-columns: auto 1fr auto;
-	gap: 0.65rem;
+	gap: 0.7rem;
 	align-items: center;
-	padding: 0.42rem 0.8rem;
-	background: rgba(24, 24, 37, 0.96);
+	padding: 0.38rem 0.72rem;
+	background: linear-gradient(180deg, rgba(34, 35, 52, 0.97), rgba(24, 24, 37, 0.98));
 	border-bottom: 1px solid var(--sig-border-soft);
-	backdrop-filter: blur(18px);
-	box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
+	backdrop-filter: blur(22px) saturate(130%);
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
 	color: var(--sig-text);
 }
 
 .sig-menu-brand {
-	font-size: 0.82rem;
+	font-size: 0.72rem;
 	font-weight: 700;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.08em;
 	color: var(--sig-accent);
 	text-transform: uppercase;
 }
@@ -2977,31 +3132,35 @@ a:hover {
 .sig-menu-trigger {
 	display: inline-flex;
 	align-items: center;
-	padding: 0.28rem 0.68rem;
+	justify-content: center;
+	padding: 0.22rem 0.68rem;
+	min-height: 1.75rem;
 	border-radius: 8px;
-	background: rgba(49, 50, 68, 0.88);
+	background: linear-gradient(180deg, rgba(62, 64, 84, 0.96), rgba(43, 44, 61, 0.94));
 	border: 1px solid var(--sig-border-soft);
 	color: var(--sig-text);
-	font-size: 0.78rem;
+	font-size: 0.72rem;
 	font-weight: 600;
+	box-shadow: var(--sig-inset-highlight);
 }
 
 .sig-menu-trigger:hover {
-	background: rgba(69, 71, 90, 0.96);
+	background: linear-gradient(180deg, rgba(78, 81, 105, 0.98), rgba(54, 56, 76, 0.96));
 	text-decoration: none;
 }
 
 .sig-menu-panel {
 	position: absolute;
-	top: calc(100% + 0.45rem);
+	top: calc(100% + 0.3rem);
 	left: 0;
 	display: none;
-	min-width: 14rem;
-	padding: 0.5rem;
-	border-radius: 12px;
-	background: rgba(24, 24, 37, 0.98);
+	min-width: 13rem;
+	padding: 0.4rem;
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(32, 33, 49, 0.98), rgba(21, 22, 34, 0.98));
 	border: 1px solid var(--sig-border);
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.42);
+	box-shadow: 0 16px 36px rgba(0, 0, 0, 0.46);
+	backdrop-filter: blur(22px) saturate(135%);
 }
 
 .sig-menu.open .sig-menu-panel {
@@ -3010,17 +3169,19 @@ a:hover {
 
 .sig-menu-item {
 	display: block;
-	padding: 0.45rem 0.55rem;
+	padding: 0.4rem 0.55rem;
 	border-radius: 8px;
 	color: var(--sig-text);
-	font-size: 0.8rem;
+	font-size: 0.72rem;
 	white-space: nowrap;
+	transition: background 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
 .sig-menu-item:hover {
-	background: rgba(137, 180, 250, 0.12);
+	background: rgba(137, 180, 250, 0.14);
 	color: #eef6ff;
 	text-decoration: none;
+	transform: translateX(1px);
 }
 
 .sig-menu-status {
@@ -3037,9 +3198,9 @@ a:hover {
 
 .sig-status-badge {
 	max-width: 22rem;
-	padding: 0.18rem 0.55rem;
+	padding: 0.2rem 0.6rem;
 	border-radius: 999px;
-	background: rgba(137, 180, 250, 0.18);
+	background: linear-gradient(180deg, rgba(137, 180, 250, 0.18), rgba(137, 180, 250, 0.12));
 	color: #eef6ff;
 	font-size: 0.76rem;
 	border: 1px solid rgba(137, 180, 250, 0.22);
@@ -3054,16 +3215,16 @@ a:hover {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.35rem 0.45rem;
-	padding: 0.42rem 0.75rem;
-	background: rgba(24, 24, 37, 0.96);
-	backdrop-filter: blur(18px);
+	gap: 0.25rem 0.35rem;
+	padding: 0.34rem 0.58rem;
+	background: linear-gradient(180deg, rgba(25, 26, 39, 0.98), rgba(20, 20, 31, 0.98));
+	backdrop-filter: blur(22px) saturate(130%);
 	border-top: 1px solid var(--sig-border-soft);
-	box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.28);
+	box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.3);
 }
 
 .sig-taskbar-brand {
-	font-size: 0.78rem;
+	font-size: 0.66rem;
 	font-weight: 700;
 	color: var(--sig-accent);
 	text-transform: uppercase;
@@ -3086,18 +3247,19 @@ a:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.28rem 0.72rem;
+	padding: 0.2rem 0.68rem;
 	border-radius: 8px;
-	background: rgba(49, 50, 68, 0.88);
+	background: linear-gradient(180deg, rgba(62, 64, 84, 0.96), rgba(43, 44, 61, 0.94));
 	border: 1px solid var(--sig-border-soft);
 	color: var(--sig-text);
-	font-size: 0.76rem;
+	font-size: 0.7rem;
 	font-weight: 500;
+	box-shadow: var(--sig-inset-highlight);
 }
 
 .sig-taskbar-strip-menus .sig-menu-trigger:hover,
 .sig-taskbar-strip-menus .sig-menu.open .sig-menu-trigger {
-	background: rgba(69, 71, 90, 0.96);
+	background: linear-gradient(180deg, rgba(78, 81, 105, 0.98), rgba(54, 56, 76, 0.96));
 	color: #eef6ff;
 	text-decoration: none;
 }
@@ -3111,13 +3273,14 @@ a:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.28rem 0.72rem;
+	padding: 0.2rem 0.7rem;
 	border-radius: 8px;
-	background: rgba(49, 50, 68, 0.88);
+	background: linear-gradient(180deg, rgba(62, 64, 84, 0.96), rgba(43, 44, 61, 0.94));
 	border: 1px solid var(--sig-border-soft);
 	color: var(--sig-text);
-	font-size: 0.76rem;
+	font-size: 0.7rem;
 	white-space: nowrap;
+	box-shadow: var(--sig-inset-highlight);
 }
 
 .sig-taskbar-button:not(.sig-taskbar-command):not(.open):not([data-sig-taskbar-pinned="true"]) {
@@ -3138,7 +3301,7 @@ a:hover {
 
 .sig-taskbar-button:hover {
 	text-decoration: none;
-	background: rgba(69, 71, 90, 0.96);
+	background: linear-gradient(180deg, rgba(78, 81, 105, 0.98), rgba(54, 56, 76, 0.96));
 }
 
 .sig-taskbar-status {
@@ -3150,6 +3313,11 @@ a:hover {
 	gap: 0.45rem;
 	font-size: 0.76rem;
 	color: var(--sig-muted);
+}
+
+.sig-taskbar-session {
+	font-weight: 600;
+	color: #cdd6f4;
 }
 
 .sig-taskbar-note {
@@ -3190,11 +3358,13 @@ a:hover {
 	min-height: 18rem;
 	max-height: calc(100vh - 5.5rem);
 	height: min(32rem, calc(68vh - 1rem));
-	background: var(--sig-window-bg);
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 9%),
+		linear-gradient(180deg, rgba(31, 32, 48, 0.98), rgba(18, 19, 30, 0.97));
 	border: 1px solid var(--sig-window-border);
-	border-radius: 14px;
-	box-shadow: var(--sig-shadow);
-	backdrop-filter: blur(18px);
+	border-radius: 10px;
+	box-shadow: var(--sig-window-glow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+	backdrop-filter: blur(18px) saturate(122%);
 	overflow: hidden;
 	resize: both;
 	display: flex;
@@ -3202,46 +3372,61 @@ a:hover {
 	z-index: 10;
 }
 
+.sig-floating-window::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+	pointer-events: none;
+}
+
 .sig-floating-window.sig-window-active {
 	border-color: rgba(137, 180, 250, 0.95);
-	box-shadow: 0 18px 42px rgba(137, 180, 250, 0.10), 0 34px 84px rgba(0, 0, 0, 0.55);
+	box-shadow: 0 0 0 1px rgba(137, 180, 250, 0.2), 0 24px 56px rgba(0, 0, 0, 0.58);
 }
 
 .sig-window-titlebar {
 	display: flex;
 	align-items: center;
 	justify-content: flex-start;
-	gap: 0.75rem;
-	padding: 0.55rem 0.75rem;
-	background: #181825;
-	border-bottom: 1px solid var(--sig-border-soft);
+	gap: 0.45rem;
+	padding: 0 0.68rem;
+	height: 30px;
+	background: linear-gradient(180deg, rgba(35, 36, 54, 0.98), rgba(24, 24, 37, 0.98));
+	border-bottom: 1px solid rgba(69, 71, 90, 0.94);
+	box-shadow: inset 0 -1px 0 rgba(12, 12, 20, 0.4);
 	color: var(--sig-text);
 	cursor: grab;
 }
 
 .sig-window-headings h2 {
 	margin: 0;
-	font-size: 0.84rem;
-	font-weight: 800;
-	letter-spacing: 0.03em;
-	color: #c7c9dd;
+	font-size: 11px;
+	font-weight: 650;
+	letter-spacing: 0;
+	color: #cdd6f4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .sig-window-headings {
 	flex: 1;
 	min-width: 0;
+	display: flex;
+	align-items: center;
 }
 
 .sig-window-subtitle {
-	display: block;
-	margin-top: 0.12rem;
-	font-size: 0.68rem;
-	color: var(--sig-subtle);
+	display: none;
 }
 
 .sig-window-controls {
 	display: flex;
-	gap: 0.45rem;
+	gap: 0.35rem;
 	flex-shrink: 0;
 }
 
@@ -3249,15 +3434,16 @@ a:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 1.1rem;
-	height: 1.1rem;
+	width: 16px;
+	height: 16px;
 	padding: 0;
 	border-radius: 999px;
-	border: none;
+	border: 1px solid rgba(17, 17, 27, 0.35);
 	color: transparent;
 	font-size: 0;
 	line-height: 0;
 	cursor: pointer;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .sig-window-control:hover {
@@ -3285,6 +3471,7 @@ a:hover {
 	overflow-y: scroll;
 	display: flex;
 	flex-direction: column;
+	background: linear-gradient(180deg, rgba(20, 21, 32, 0.98), rgba(15, 16, 25, 0.98));
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
@@ -3324,14 +3511,18 @@ a:hover {
 }
 
 .sig-session-panel {
-	background: var(--sig-surface-0);
-	border: 1px solid var(--sig-border-soft);
-	border-radius: 10px;
-	padding: 0.85rem;
+	background: linear-gradient(180deg, rgba(38, 40, 58, 0.95), rgba(22, 23, 35, 0.96));
+	border: 1px solid rgba(79, 82, 104, 0.88);
+	border-radius: 12px;
+	padding: 0.95rem;
+	box-shadow: var(--sig-panel-shadow), var(--sig-inset-highlight);
 }
 
 .sig-summary-list {
 	margin: 0;
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.3rem 0.8rem;
 }
 
 .sig-summary-list dt {
@@ -3343,8 +3534,11 @@ a:hover {
 }
 
 .sig-summary-list dd {
-	margin: 0.2rem 0 0.8rem;
+	margin: 0;
 	line-height: 1.45;
+	color: #eef6ff;
+	min-width: 0;
+	word-break: break-word;
 }
 
 .sig-sidebar,
@@ -3352,10 +3546,12 @@ a:hover {
 .sig-browser-column,
 .sig-source-window,
 .sig-debugger-panel {
-	background: var(--sig-surface-0);
-	border: 1px solid var(--sig-border-soft);
-	border-radius: 10px;
-	padding: 0.85rem;
+	position: relative;
+	background: linear-gradient(180deg, rgba(38, 40, 58, 0.95), rgba(22, 23, 35, 0.96));
+	border: 1px solid rgba(79, 82, 104, 0.88);
+	border-radius: 12px;
+	padding: 0.95rem;
+	box-shadow: var(--sig-panel-shadow), var(--sig-inset-highlight);
 }
 
 .sig-sidebar,
@@ -3452,11 +3648,12 @@ a:hover {
 .sig-browser-item,
 .sig-root {
 	display: block;
-	padding: 0.42rem 0.55rem;
+	padding: 0.46rem 0.68rem;
 	border-radius: 8px;
-	background: rgba(17, 17, 27, 0.42);
-	border: 1px solid transparent;
+	background: rgba(17, 17, 27, 0.46);
+	border: 1px solid rgba(49, 50, 68, 0.32);
 	color: var(--sig-muted);
+	transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
 .sig-browser-item:hover,
@@ -3464,6 +3661,7 @@ a:hover {
 	background: rgba(49, 50, 68, 0.96);
 	color: #eef6ff;
 	text-decoration: none;
+	transform: translateX(1px);
 }
 
 .sig-browser-item.selected,
@@ -3476,11 +3674,19 @@ a:hover {
 
 .sig-window-note {
 	color: var(--sig-muted);
-	margin-top: 0;
+	margin: 0;
+	padding: 0.55rem 0.65rem;
+	border-left: 3px solid rgba(137, 180, 250, 0.42);
+	border-radius: 0.55rem;
+	background: rgba(17, 17, 27, 0.4);
 	line-height: 1.45;
 }
 
 .sig-command-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.45rem;
 	margin-bottom: 0.8rem;
 }
 
@@ -3488,28 +3694,35 @@ a:hover {
 	color: var(--sig-danger);
 }
 
-.sig-action {
+.sig-action,
+.sig-local-command {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	margin: 0 0.35rem 0.35rem 0;
-	padding: 0.34rem 0.72rem;
+	margin: 0;
+	padding: 0.38rem 0.82rem;
 	border-radius: 8px;
-	background: rgba(49, 50, 68, 0.9);
+	background: linear-gradient(180deg, rgba(62, 64, 84, 0.96), rgba(43, 44, 61, 0.94));
 	border: 1px solid var(--sig-border-soft);
 	color: var(--sig-text);
-	font-size: 0.78rem;
+	font-size: 0.76rem;
+	font-weight: 600;
+	box-shadow: var(--sig-inset-highlight);
+	transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.sig-action:hover {
-	background: rgba(69, 71, 90, 0.96);
+.sig-action:hover,
+.sig-local-command:hover {
+	background: linear-gradient(180deg, rgba(78, 81, 105, 0.98), rgba(54, 56, 76, 0.96));
 	color: #eef6ff;
 	text-decoration: none;
+	transform: translateY(-1px);
 }
 
 .sig-table {
 	width: 100%;
 	border-collapse: collapse;
+	border-spacing: 0;
 }
 
 .sig-table th {
@@ -3518,13 +3731,13 @@ a:hover {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--sig-subtle);
-	background: rgba(17, 17, 27, 0.55);
+	background: rgba(17, 17, 27, 0.72);
 }
 
 .sig-table th,
 .sig-table td {
 	border-top: 1px solid rgba(49, 50, 68, 0.82);
-	padding: 0.48rem 0.52rem;
+	padding: 0.52rem 0.58rem;
 	text-align: left;
 	vertical-align: top;
 }
@@ -3626,10 +3839,11 @@ a:hover {
 .sig-transcript-pane,
 .sig-debugger-pane,
 .sig-debugger-frame-list {
-	background: rgba(17, 17, 27, 0.46);
+	background: linear-gradient(180deg, rgba(15, 16, 25, 0.88), rgba(20, 21, 32, 0.86));
 	border: 1px solid rgba(49, 50, 68, 0.82);
-	border-radius: 8px;
-	padding: 0.45rem;
+	border-radius: 10px;
+	padding: 0.55rem;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .sig-debugger-source-note {
@@ -3654,7 +3868,7 @@ a:hover {
 
 .sig-debugger-source-line {
 	display: grid;
-	grid-template-columns: 3rem minmax(0, 1fr);
+	grid-template-columns: 1.15rem 3rem minmax(0, 1fr);
 	gap: 0.75rem;
 	align-items: start;
 	padding: 0.16rem 0.8rem;
@@ -3684,6 +3898,16 @@ a:hover {
 
 .sig-debugger-source-code {
 	min-width: 0;
+}
+
+.sig-debugger-step-caret {
+	display: inline-block;
+	width: 0;
+	height: 1.05em;
+	margin-right: 0.14rem;
+	border-left: 2px solid #f9e2af;
+	vertical-align: -0.12em;
+	box-shadow: 0 0 0 1px rgba(249, 226, 175, 0.18);
 }
 
 .sig-debugger-diagnostic-grid {
@@ -3743,12 +3967,13 @@ a:hover {
 .sig-context-menu {
 	position: fixed;
 	display: none;
-	min-width: 15rem;
-	padding: 0.85rem;
-	border-radius: 12px;
-	background: rgba(24, 24, 37, 0.98);
+	min-width: 13rem;
+	padding: 0.55rem;
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(32, 33, 49, 0.98), rgba(21, 22, 34, 0.98));
 	border: 1px solid var(--sig-border);
-	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+	box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
+	backdrop-filter: blur(22px) saturate(135%);
 	z-index: 2500;
 }
 
@@ -3804,10 +4029,11 @@ a:hover {
 }
 
 .sig-transcript-entry {
-	padding: 0.6rem 0.75rem;
-	border-radius: 8px;
-	background: rgba(17, 17, 27, 0.58);
-	border: 1px solid rgba(49, 50, 68, 0.92);
+	padding: 0.68rem 0.82rem;
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(23, 24, 36, 0.78), rgba(17, 17, 27, 0.68));
+	border: 1px solid rgba(57, 59, 79, 0.92);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 	font-size: 0.84rem;
 	line-height: 1.45;
 }
@@ -3815,6 +4041,7 @@ a:hover {
 .sig-empty-state {
 	color: var(--sig-muted);
 	margin: 0;
+	padding: 0.4rem 0;
 }
 
 .sig-workspace-form {
@@ -3826,15 +4053,16 @@ a:hover {
 .sig-workspace-editor {
 	width: 100%;
 	min-height: 15rem;
-	padding: 0.85rem;
-	border-radius: 8px;
-	border: 1px solid rgba(69, 71, 90, 0.96);
-	background: rgba(17, 17, 27, 0.82);
+	padding: 0.9rem;
+	border-radius: 10px;
+	border: 1px solid rgba(74, 77, 99, 0.96);
+	background: linear-gradient(180deg, rgba(16, 17, 26, 0.96), rgba(22, 23, 35, 0.94));
 	box-sizing: border-box;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 	font-size: 0.86rem;
 	line-height: 1.5;
 	color: var(--sig-text);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .sig-workspace-editor:focus {
@@ -3871,10 +4099,11 @@ a:hover {
 }
 
 .sig-workspace-output {
-	background: var(--sig-surface-0);
-	border: 1px solid var(--sig-border-soft);
-	border-radius: 10px;
-	padding: 0.85rem;
+	background: linear-gradient(180deg, rgba(38, 40, 58, 0.95), rgba(22, 23, 35, 0.96));
+	border: 1px solid rgba(79, 82, 104, 0.88);
+	border-radius: 12px;
+	padding: 0.95rem;
+	box-shadow: var(--sig-panel-shadow), var(--sig-inset-highlight);
 }
 
 .sig-workspace-output h3 {
@@ -3885,17 +4114,83 @@ a:hover {
 	max-height: 14rem;
 }
 
+.sig-sidebar > h3,
+.sig-main > h3,
+.sig-browser-column > h3,
+.sig-source-window > h3,
+.sig-session-panel > h3,
+.sig-workspace-output > h3 {
+	margin: 0 0 0.75rem;
+	padding-bottom: 0.45rem;
+	border-bottom: 1px solid rgba(69, 71, 90, 0.72);
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--sig-subtle);
+}
+
+.sig-detail-pane dl,
+.sig-source-window dl,
+.sig-session-panel dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.3rem 0.8rem;
+	margin: 0;
+}
+
+.sig-detail-pane dt,
+.sig-source-window dt,
+.sig-session-panel dt {
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: var(--sig-muted);
+}
+
+.sig-detail-pane dd,
+.sig-source-window dd,
+.sig-session-panel dd {
+	margin: 0;
+	min-width: 0;
+	color: #eef6ff;
+	word-break: break-word;
+}
+
+.sig-window-body input[type="text"],
+.sig-window-body textarea,
+.sig-window-body select {
+	border: 1px solid rgba(74, 77, 99, 0.96);
+	border-radius: 0.55rem;
+	background: linear-gradient(180deg, rgba(16, 17, 26, 0.96), rgba(22, 23, 35, 0.94));
+	color: var(--sig-text);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.sig-window-body input[type="text"]:focus,
+.sig-window-body textarea:focus,
+.sig-window-body select:focus {
+	outline: none;
+	border-color: rgba(137, 180, 250, 0.82);
+	box-shadow: inset 0 0 0 1px rgba(137, 180, 250, 0.22), 0 0 0 1px rgba(137, 180, 250, 0.08);
+}
+
+.sig-window-body input[type="text"]::placeholder,
+.sig-window-body textarea::placeholder {
+	color: #6c7086;
+}
+
 button.btn,
 .btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.3rem 0.72rem;
-	border-radius: 0.35rem;
+	padding: 3px 10px;
+	border-radius: 3px;
 	border: none;
 	background: #cba6f7;
 	color: #1e1e2e;
-	font-size: 0.78rem;
+	font-size: 11px;
 	font-weight: 700;
 	cursor: pointer;
 	text-decoration: none;
@@ -3912,12 +4207,12 @@ button.btn-ghost,
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.24rem 0.62rem;
-	border-radius: 0.35rem;
+	padding: 2px 8px;
+	border-radius: 3px;
 	border: 1px solid #45475a;
 	background: transparent;
 	color: #cdd6f4;
-	font-size: 0.78rem;
+	font-size: 11px;
 	cursor: pointer;
 	text-decoration: none;
 }
@@ -3933,12 +4228,12 @@ button.btn-tx,
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.28rem 0.82rem;
-	border-radius: 0.35rem;
+	padding: 3px 12px;
+	border-radius: 3px;
 	border: none;
 	background: #e08020;
 	color: white;
-	font-size: 0.78rem;
+	font-size: 11px;
 	font-weight: 700;
 	cursor: pointer;
 	text-decoration: none;
@@ -3958,12 +4253,12 @@ button.btn-tx:hover,
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.35rem 0.9rem;
-	border-radius: 0.35rem;
+	padding: 4px 14px;
+	border-radius: 3px;
 	border: none;
 	background: #1e6fba;
 	color: white;
-	font-size: 0.8rem;
+	font-size: 12px;
 	font-weight: 700;
 	cursor: pointer;
 	text-decoration: none;
@@ -4093,8 +4388,8 @@ button.btn-tx:hover,
 }
 
 .tab-item {
-	padding: 0.45rem 0.8rem;
-	font-size: 0.76rem;
+	padding: 5px 12px;
+	font-size: 11px;
 	color: #a6adc8;
 	cursor: pointer;
 	border-bottom: 2px solid transparent;
@@ -4114,8 +4409,6 @@ button.btn-tx:hover,
 }
 
 .sig-debugger-shell {
-	--sig-debugger-frame-row-height: 1.82rem;
-	--sig-debugger-visible-rows: 10;
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -4136,21 +4429,18 @@ button.btn-tx:hover,
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .sig-debugger-tab-panel.active {
 	display: flex;
-	overflow-y: scroll;
-	overflow-x: hidden;
-	overscroll-behavior: contain;
-	scrollbar-gutter: stable both-edges;
 }
 
 .dbg-summary {
 	display: flex;
 	flex-direction: column;
-	gap: 0.18rem;
-	padding: 0.5rem 0.65rem;
+	gap: 2px;
+	padding: 6px 8px;
 	border-bottom: 1px solid #313244;
 	background: #181825;
 	flex-shrink: 0;
@@ -4158,8 +4448,8 @@ button.btn-tx:hover,
 
 .dbg-summary-source,
 .dbg-summary-error {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-	font-size: 0.76rem;
+	font-family: monospace;
+	font-size: 11px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -4175,10 +4465,9 @@ button.btn-tx:hover,
 
 .sig-debugger-frame-list {
 	flex: 1;
-	min-height: 5rem;
-	max-height: calc(var(--sig-debugger-frame-row-height) * var(--sig-debugger-visible-rows) + 0.9rem);
-	min-height: calc(var(--sig-debugger-frame-row-height) * var(--sig-debugger-visible-rows) + 0.9rem);
-	height: calc(var(--sig-debugger-frame-row-height) * var(--sig-debugger-visible-rows) + 0.9rem);
+	min-height: 80px;
+	max-height: 196px;
+	height: 196px;
 	padding: 0;
 	border: none;
 	border-bottom: 1px solid #313244;
@@ -4203,15 +4492,15 @@ button.btn-tx:hover,
 	width: 100%;
 	display: flex;
 	align-items: center;
-	gap: 0.45rem;
-	padding: 0.32rem 0.6rem;
+	gap: 6px;
+	padding: 3px 8px;
 	border: 0;
 	border-left: 3px solid transparent;
 	border-radius: 0;
 	background: transparent;
 	color: inherit;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-	font-size: 0.76rem;
+	font-family: monospace;
+	font-size: 11px;
 	text-align: left;
 	cursor: pointer;
 	white-space: nowrap;
@@ -4232,13 +4521,13 @@ button.btn-tx:hover,
 }
 
 .dbg-frame-icon {
-	width: 0.9rem;
-	height: 0.9rem;
+	width: 12px;
+	height: 12px;
 	border-radius: 999px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 0.48rem;
+	font-size: 7px;
 	flex-shrink: 0;
 	background: #f9e2af;
 	color: #1e1e2e;
@@ -4252,7 +4541,7 @@ button.btn-tx:hover,
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 0.35rem;
+	gap: 0.3rem;
 	padding: 0.45rem 0.6rem;
 	border-bottom: 1px solid #313244;
 	background: #181825;
@@ -4264,8 +4553,8 @@ button.btn-tx:hover,
 
 .sig-debugger-command {
 	margin: 0;
-	padding: 0.24rem 0.62rem;
-	font-size: 0.74rem;
+	padding: 0.2rem 0.55rem;
+	font-size: 10px;
 }
 
 .sig-debugger-status-row {
@@ -4277,8 +4566,8 @@ button.btn-tx:hover,
 .dbg-action-bar {
 	display: flex;
 	align-items: stretch;
-	gap: 0.35rem;
-	padding: 0.5rem 0.6rem;
+	gap: 0;
+	padding: 0;
 	border-bottom: 1px solid #313244;
 	background: #181825;
 	flex-wrap: wrap;
@@ -4287,19 +4576,21 @@ button.btn-tx:hover,
 .dbg-source-pane {
 	display: flex;
 	flex-direction: column;
-	flex: 0 0 auto;
+	flex: 1;
 	min-height: 0;
-	height: 20rem;
 	overflow: hidden;
 }
 
 .dbg-source-meta {
-	padding: 0.3rem 0.65rem;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
 	border-bottom: 1px solid #313244;
 	background: #181825;
 	color: #89b4fa;
-	font-size: 0.7rem;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 10px;
+	font-family: monospace;
 }
 
 .dbg-source-code {
@@ -4307,28 +4598,57 @@ button.btn-tx:hover,
 	min-height: 0;
 	background: #181825;
 	color: #cdd6f4;
-	padding: 0.4rem 0;
+	padding: 6px 8px;
 	overflow: auto;
+	white-space: pre;
+	line-height: 1.45;
 }
 
 .dbg-source-line {
-	display: grid;
-	grid-template-columns: 1rem 2.5rem minmax(0, 1fr);
-	gap: 0.65rem;
-	align-items: start;
-	padding: 0.08rem 0.75rem;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 0 4px;
 	border-left: 3px solid transparent;
+	transition: background 120ms ease, border-color 120ms ease;
 }
 
 .dbg-source-line.active {
-	background: #313244;
+	background: linear-gradient(90deg, rgba(137,180,250,0.18), rgba(49,50,68,0.92) 26px, #313244 100%);
 	border-left-color: #89b4fa;
 }
 
 .dbg-source-marker {
 	color: #89b4fa;
+	min-width: 28px;
 	text-align: center;
-	opacity: 0.18;
+	user-select: none;
+	flex-shrink: 0;
+	opacity: 0.15;
+}
+
+.dbg-step-cursor,
+.dbg-step-cursor-spacer {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 22px;
+	height: 16px;
+	border-radius: 999px;
+	font-size: 10px;
+	line-height: 1;
+	font-weight: 700;
+}
+
+.dbg-step-cursor {
+	background: #89b4fa;
+	color: #11111b;
+	box-shadow: 0 0 0 1px rgba(17,17,27,0.25), 0 0 12px rgba(137,180,250,0.35);
+}
+
+.dbg-step-cursor-spacer {
+	background: transparent;
+	color: transparent;
 	user-select: none;
 }
 
@@ -4336,8 +4656,18 @@ button.btn-tx:hover,
 	opacity: 1;
 }
 
+.dbg-source-lno {
+	color: #6c7086;
+	min-width: 26px;
+	text-align: right;
+	user-select: none;
+	flex-shrink: 0;
+	font-family: monospace;
+}
+
 .dbg-source-text {
 	min-width: 0;
+	color: inherit;
 	white-space: pre;
 }
 
@@ -4354,19 +4684,45 @@ button.btn-tx:hover,
 
 .dbg-self-label {
 	color: #6c7086;
-	font-size: 0.72rem;
+	font-size: 10px;
 }
 
 .dbg-self-val {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-family: monospace;
 	color: #cba6f7;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	min-width: 0;
 }
 
 .dbg-var-val {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-family: monospace;
 	color: #a6e3a1;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	min-width: 0;
+	flex: 1;
+}
+
+.dbg-inline-cursor {
+	display: inline-flex;
+	align-items: stretch;
+	justify-content: center;
+	min-width: 0.75ch;
+	margin: 0 1px;
+	background: rgba(249, 226, 175, 0.18);
+	border-left: 2px solid #f9e2af;
+	border-radius: 2px;
+	color: #f9e2af;
+	font-weight: 700;
+	box-shadow: 0 0 0 1px rgba(249, 226, 175, 0.16), 0 0 14px rgba(249, 226, 175, 0.35);
+	text-shadow: 0 0 10px rgba(249, 226, 175, 0.55);
+	user-select: none;
 }
 
 .dbg-tls-list {

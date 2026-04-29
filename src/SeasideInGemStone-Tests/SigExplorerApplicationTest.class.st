@@ -261,6 +261,45 @@ SigExplorerApplicationTest >> testDebuggerSourceHelpersUseSelectedFrameSource [
 ]
 
 { #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerSourceLineNumberUsesCursorLocationWhenFrameLineIsStale [
+	| frame |
+	frame := Dictionary new
+		at: #level put: 1;
+		at: #description put: 'Executed code';
+		at: #lineNumber put: 7;
+		at: #quickStepPoint put: 4;
+		at: #sourceOffsets put: #(1 1 6 11);
+		at: #sourceText put: '1+1.', String lf, '3*3.', String lf, '1/0';
+		yourself.
+
+	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 3.
+	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @4 line 3'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerRenderUsesPythonStyleTabsAndCursorShell [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderDebuggerContentsOn:state:) asString.
+
+	self assert: (source includesString: 'Stack Trace').
+	self assert: (source includesString: 'Thread Local Storage').
+	self assert: (source includesString: 'data-sig-tab-panel').
+	self assert: (source includesString: 'renderDebuggerLiveCommandsOn: html state: aState').
+	self assert: (source includesString: 'renderDebuggerDiagnosticsOn: html state: aState')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerSourceRendererUsesInlineCursorClasses [
+	| renderSource renderText |
+	renderSource := (SigExplorerApplication sourceCodeAt: #renderDebuggerSourceOn:frame:) asString.
+	renderText := (SigExplorerApplication sourceCodeAt: #renderDebuggerSourceTextOn:line:cursorColumn:) asString.
+
+	self assert: (renderSource includesString: 'dbg-step-cursor').
+	self assert: (renderSource includesString: 'dbg-source-lno').
+	self assert: (renderText includesString: 'dbg-inline-cursor')
+]
+
+{ #category : 'tests' }
 SigExplorerApplicationTest >> testDebuggerSourceStatusUsesExecutedCodeLabel [
 	| frame |
 	frame := Dictionary new
@@ -273,6 +312,18 @@ SigExplorerApplicationTest >> testDebuggerSourceStatusUsesExecutedCodeLabel [
 		yourself.
 
 	self assert: (application debuggerFrameSourceStatusTextFor: frame) equals: 'Executed code @3 line 2'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerSourceCursorLocationUsesStepOffsetInsideCommentLine [
+	| frame |
+	frame := Dictionary new
+		at: #sourceText put: '"comment" 1/0';
+		at: #sourceOffsets put: #(11);
+		at: #quickStepPoint put: 1;
+		yourself.
+
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 11)
 ]
 
 { #category : 'tests' }
@@ -344,7 +395,9 @@ SigExplorerApplicationTest >> testDebuggerSourcePaneFollowsCurrentLine [
 
 	self assert: (detailsSource includesString: 'data-sig-scroll-follow').
 	self assert: (detailsSource includesString: 'put: ''selected''').
-	self assert: (sourceSource includesString: 'sig-debugger-source-line current selected')
+	self assert: (sourceSource includesString: 'dbg-source-line sig-debugger-source-line current selected active').
+	self assert: (sourceSource includesString: 'renderDebuggerSourceTextOn: html').
+	self assert: ((SigExplorerApplication sourceCodeAt: #renderDebuggerSourceTextOn:line:cursorColumn: ) asString includesString: 'dbg-inline-cursor')
 ]
 
 { #category : 'tests' }
@@ -444,24 +497,21 @@ SigExplorerApplicationTest >> testDebuggerSelectionPrefersExplicitErrorFrame [
 
 { #category : 'tests' }
 SigExplorerApplicationTest >> testDebuggerLayoutPlacesStackBeforeControlsAndSource [
-	| controlsIndex diagnosticsIndex liveControlsIndex source sourceIndex stackIndex |
+	| diagnosticsIndex liveControlsIndex source sourceIndex stackIndex |
 	source := (SigExplorerApplication sourceCodeAt: #renderDebuggerContentsOn:state: ) asString.
 
 	self assert: (source includesString: 'sig-debugger-shell').
-	self deny: (source includesString: 'data-sig-tab-panel').
+	self assert: (source includesString: 'data-sig-tab-panel').
 	stackIndex := source findString: 'self renderDebuggerFramesOn: html state: aState' startingAt: 1.
-	controlsIndex := source findString: 'self renderDebuggerCommandsOn: html state: aState' startingAt: 1.
 	liveControlsIndex := source findString: 'self renderDebuggerLiveCommandsOn: html state: aState' startingAt: 1.
 	sourceIndex := source findString: 'self renderDebuggerFrameDetailsOn: html state: aState' startingAt: 1.
 	diagnosticsIndex := source findString: 'self renderDebuggerDiagnosticsOn: html state: aState' startingAt: 1.
 
 	self assert: stackIndex > 0.
-	self assert: controlsIndex > 0.
 	self assert: liveControlsIndex > 0.
 	self assert: sourceIndex > 0.
 	self assert: diagnosticsIndex > 0.
-	self assert: stackIndex < controlsIndex.
-	self assert: controlsIndex < liveControlsIndex.
+	self assert: stackIndex < liveControlsIndex.
 	self assert: liveControlsIndex < sourceIndex.
 	self assert: sourceIndex < diagnosticsIndex
 ]
@@ -498,8 +548,21 @@ SigExplorerApplicationTest >> testDebuggerStylesLimitVisibleStackRowsToTen [
 	| style |
 	style := application stylesheet.
 
-	self assert: (style includesString: '--sig-debugger-visible-rows: 10;').
-	self assert: (style includesString: 'height: calc(var(--sig-debugger-frame-row-height) * var(--sig-debugger-visible-rows) + 0.9rem);')
+	self assert: (style includesString: '.sig-debugger-frame-list').
+	self assert: (style includesString: 'max-height: 196px;').
+	self assert: (style includesString: 'height: 196px;')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testStylesheetIncludesElegantSharedWindowChrome [
+	| style |
+	style := application stylesheet.
+
+	self assert: (style includesString: '.sig-floating-window::before').
+	self assert: (style includesString: '.sig-action,').
+	self assert: (style includesString: '.sig-local-command').
+	self assert: (style includesString: '.sig-window-body input[type="text"]').
+	self assert: (style includesString: '.sig-sidebar > h3')
 ]
 
 { #category : 'tests' }
