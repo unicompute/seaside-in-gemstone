@@ -110,9 +110,14 @@ SigExplorerApplicationTest >> testExplorerRenderUsesBridgeStyleBrowserShell [
 { #category : 'tests' }
 SigExplorerApplicationTest >> testRenderSymbolListBrowserUsesOpenWindowAction [
 	| source |
-	source := (SigExplorerApplication sourceCodeAt: #renderSymbolListBrowserOn:) asString.
+	source := (SigExplorerApplication sourceCodeAt: #renderSymbolListBrowserOn:window:) asString.
 
-	self assert: (source includesString: 'exp-wrap').
+	self assert: (source includesString: 'exp-wrap slb-wrap').
+	self assert: (source includesString: 'exp-main-grid slb-main-grid').
+	self assert: (source includesString: 'exp-detail-grid slb-detail-grid').
+	self assert: (source includesString: 'exp-list exp-scroll exp-scroll-rows-10').
+	self assert: (source includesString: 'slb-detail-scroll').
+	self assert: (source includesString: 'slb-print-pane').
 	self assert: (source includesString: 'Keys / Values').
 	self assert: (source includesString: 'PrintString').
 	self assert: (source includesString: 'openSelectedSymbolListEntryInNewWindow').
@@ -179,13 +184,74 @@ SigExplorerApplicationTest >> testRenderInspectorContentsUsesInspectableValueLin
 { #category : 'tests' }
 SigExplorerApplicationTest >> testRenderBrowserUsesEditableSourceForm [
 	| source |
-	source := (SigExplorerApplication sourceCodeAt: #renderBrowserOn:) asString.
+	source := (SigExplorerApplication sourceCodeAt: #renderBrowserOn:window:) asString.
 
 	self assert: (source includesString: 'cb-source-form').
 	self assert: (source includesString: 'html textArea').
 	self assert: (source includesString: 'cb-source-editor').
 	self assert: (source includesString: 'browserCompileSource').
 	self assert: (source includesString: 'browserResetSourceDraft')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testOpenAdditionalWindowOfKindCreatesAuxiliaryBrowserWindow [
+	| window |
+	application openAdditionalWindowOfKind: #browser.
+	window := application auxiliaryWindows first.
+
+	self assert: application auxiliaryWindows size equals: 1.
+	self assert: (window at: #kind) equals: #browser.
+	self assert: (window at: #id) equals: 'sig-window-browser-aux-1'.
+	self assert: (window at: #taskbarLabel) equals: 'Br 1'.
+	self assert: (window at: #selectedBrowserDictionaryName) equals: #UserGlobals.
+	self assert: (window at: #selectedBrowserClassName) isNil.
+	self assert: application consumePendingWindowIdToShow equals: 'sig-window-browser-aux-1'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testAdditionalWorkspaceWindowKeepsIndependentSourceText [
+	| window |
+	window := application newAuxiliaryWindowForKind: #workspace.
+
+	application workspaceSourceText: '2 + 3' forWindow: window.
+
+	self assert: application workspaceSourceText equals: '1 + 2'.
+	self assert: (application workspaceSourceTextForWindow: window) equals: '2 + 3'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testAdditionalSymbolListWindowKeepsIndependentDictionarySelection [
+	| window |
+	window := application newAuxiliaryWindowForKind: #symbolList.
+
+	application selectSymbolListDictionaryNamed: #Globals forWindow: window.
+
+	self assert: application selectedSymbolListDictionaryName equals: #UserGlobals.
+	self assert: (application selectedSymbolListDictionaryNameForWindow: window) equals: #Globals
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderWindowMenuItemsUsesAdditionalWindowActions [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderWindowMenuItemsOn:) asString.
+
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #explorer').
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #workspace').
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #browser').
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #symbolList').
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #session').
+	self assert: (source includesString: 'openAdditionalWindowOfKind: #transcript').
+	self deny: (source includesString: 'label: ''Inspector''').
+	self deny: (source includesString: 'label: ''Debugger''')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDesktopContextMenuDoesNotExposeInspectorOrDebuggerOpenOptions [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderDesktopContextMenuOn:) asString.
+
+	self deny: (source includesString: 'Open Inspector').
+	self deny: (source includesString: 'Open Debugger')
 ]
 
 { #category : 'tests' }
@@ -347,12 +413,14 @@ SigExplorerApplicationTest >> testDebuggerSelectionCommandsRespectBridgeFilterin
 { #category : 'tests' }
 SigExplorerApplicationTest >> testWorkspaceRenderUsesClassicButtons [
 	| source |
-	source := (SigExplorerApplication sourceCodeAt: #renderWorkspaceOn:) asString.
+	source := (SigExplorerApplication sourceCodeAt: #renderWorkspaceOn:window:) asString.
 
 	self assert: (source includesString: 'with: ''Do it''').
 	self assert: (source includesString: 'with: ''Print it''').
 	self assert: (source includesString: 'with: ''Inspect it''').
-	self assert: (source includesString: 'with: ''Debug it''')
+	self assert: (source includesString: 'with: ''Debug it''').
+	self assert: (source includesString: 'workspaceDoItForWindow:').
+	self assert: (source includesString: 'workspaceSourceTextForWindow:')
 ]
 
 { #category : 'tests' }
@@ -809,9 +877,19 @@ SigExplorerApplicationTest >> testRenderTaskBarIncludesBottomMenus [
 	self assert: (source includesString: 'sig-taskbar-strip-menus').
 	self assert: (source includesString: 'label: ''Close All''').
 	self assert: (source includesString: 'label: ''Windows''').
-	self assert: (source includesString: 'label: ''Arrange''').
 	self assert: (source includesString: 'label: ''Session''').
-	self assert: (source includesString: 'label: ''Workspace''')
+	self assert: (source includesString: 'label: ''Arrange''').
+	self deny: (source includesString: 'renderExplorerMenuItemsOn: menu').
+	self deny: (source includesString: 'renderTranscriptMenuItemsOn: menu').
+	self deny: (source includesString: 'renderWorkspaceMenuItemsOn: menu').
+	self deny: (source includesString: 'renderBrowserMenuItemsOn: menu').
+	self deny: (source includesString: 'renderSymbolListMenuItemsOn: menu').
+	self assert: ((source findString: 'sig-taskbar-strip-menus' startingAt: 1)
+		< (source findString: 'renderTaskBarWindowCommandOn: html label: ''Explorer''' startingAt: 1)).
+	self assert: ((source findString: 'label: ''Windows''' startingAt: 1)
+		< (source findString: 'label: ''Session''' startingAt: 1)).
+	self assert: ((source findString: 'label: ''Session''' startingAt: 1)
+		< (source findString: 'label: ''Arrange''' startingAt: 1))
 ]
 
 { #category : 'tests' }

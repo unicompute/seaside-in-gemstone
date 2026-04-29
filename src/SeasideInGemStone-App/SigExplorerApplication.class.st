@@ -24,7 +24,9 @@ Class {
 		'debuggerWindows',
 		'nextDebuggerWindowNumber',
 		'inspectorWindows',
-		'nextInspectorWindowNumber'
+		'nextInspectorWindowNumber',
+		'auxiliaryWindows',
+		'nextAuxiliaryWindowNumber'
 	],
 	#category : 'SeasideInGemStone-App',
 	#package : 'SeasideInGemStone-App'
@@ -68,8 +70,21 @@ SigExplorerApplication >> browserClassAssociations [
 ]
 
 { #category : 'querying' }
+SigExplorerApplication >> browserClassAssociationsForWindow: aWindow [
+	^ self gateway
+		classAssociationsForDictionaryNamed: (self browserDictionaryNameForWindow: aWindow)
+]
+
+{ #category : 'querying' }
 SigExplorerApplication >> browserDictionaryNames [
 	^ self gateway browserDictionaryNames
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserDictionaryNameForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedBrowserDictionaryName ]
+		ifNotNil: [ aWindow at: #selectedBrowserDictionaryName ifAbsent: [ #UserGlobals ] ]
 ]
 
 { #category : 'querying' }
@@ -78,6 +93,14 @@ SigExplorerApplication >> browserProtocolNames [
 	^ self gateway
 		protocolNamesForClassNamed: selectedBrowserClassName
 		inDictionaryNamed: selectedBrowserDictionaryName
+]
+
+{ #category : 'querying' }
+SigExplorerApplication >> browserProtocolNamesForWindow: aWindow [
+	(self browserClassNameForWindow: aWindow) ifNil: [ ^ #() ].
+	^ self gateway
+		protocolNamesForClassNamed: (self browserClassNameForWindow: aWindow)
+		inDictionaryNamed: (self browserDictionaryNameForWindow: aWindow)
 ]
 
 { #category : 'querying' }
@@ -90,11 +113,29 @@ SigExplorerApplication >> browserSelectorNames [
 ]
 
 { #category : 'querying' }
+SigExplorerApplication >> browserSelectorNamesForWindow: aWindow [
+	((self browserClassNameForWindow: aWindow) isNil
+		or: [ (self browserProtocolNameForWindow: aWindow) isNil ]) ifTrue: [ ^ #() ].
+	^ self gateway
+		selectorsForClassNamed: (self browserClassNameForWindow: aWindow)
+		protocolNamed: (self browserProtocolNameForWindow: aWindow)
+		inDictionaryNamed: (self browserDictionaryNameForWindow: aWindow)
+]
+
+{ #category : 'querying' }
 SigExplorerApplication >> browserSourceText [
 	^ self gateway
 		methodSourceForClassNamed: selectedBrowserClassName
 		selectorNamed: selectedBrowserSelector
 		inDictionaryNamed: selectedBrowserDictionaryName
+]
+
+{ #category : 'querying' }
+SigExplorerApplication >> browserSourceTextForWindow: aWindow [
+	^ self gateway
+		methodSourceForClassNamed: (self browserClassNameForWindow: aWindow)
+		selectorNamed: (self browserSelectorForWindow: aWindow)
+		inDictionaryNamed: (self browserDictionaryNameForWindow: aWindow)
 ]
 
 { #category : 'querying' }
@@ -105,27 +146,51 @@ SigExplorerApplication >> browserEditableSourceText [
 ]
 
 { #category : 'querying' }
+SigExplorerApplication >> browserEditableSourceTextForWindow: aWindow [
+	| draft |
+	draft := self browserSourceDraftTextForWindow: aWindow.
+	draft ifNotNil: [ ^ draft ].
+	((self browserClassNameForWindow: aWindow) isNil
+		or: [ (self browserSelectorForWindow: aWindow) isNil ]) ifTrue: [ ^ '' ].
+	^ self browserSourceTextForWindow: aWindow
+]
+
+{ #category : 'querying' }
 SigExplorerApplication >> browserSourceHeadingText [
 	selectedBrowserClassName ifNil: [ ^ 'Select a class to start browsing.' ].
 	selectedBrowserSelector isNil ifTrue: [ ^ selectedBrowserClassName, ' is selected.' ].
 	^ selectedBrowserClassName, ' >> ', selectedBrowserSelector
 ]
 
+{ #category : 'querying' }
+SigExplorerApplication >> browserSourceHeadingTextForWindow: aWindow [
+	(self browserClassNameForWindow: aWindow) ifNil: [ ^ 'Select a class to start browsing.' ].
+	(self browserSelectorForWindow: aWindow) isNil ifTrue: [
+		^ (self browserClassNameForWindow: aWindow), ' is selected.' ].
+	^ (self browserClassNameForWindow: aWindow), ' >> ', (self browserSelectorForWindow: aWindow)
+]
+
 { #category : 'actions' }
 SigExplorerApplication >> browserCompileSource [
+	^ self browserCompileSourceForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> browserCompileSourceForWindow: aWindow [
 	| categoryName outcome |
-	selectedBrowserClassName ifNil: [
+	(self browserClassNameForWindow: aWindow) ifNil: [
 		self setStatusMessage: 'Select a class before compiling'.
 		^ self ].
-	categoryName := selectedBrowserProtocolName ifNil: [ 'as yet unclassified' ].
+	categoryName := (self browserProtocolNameForWindow: aWindow) ifNil: [ 'as yet unclassified' ].
 	outcome := self gateway
-		compileMethodSource: self browserEditableSourceText
-		forClassNamed: selectedBrowserClassName
+		compileMethodSource: (self browserEditableSourceTextForWindow: aWindow)
+		forClassNamed: (self browserClassNameForWindow: aWindow)
 		protocolNamed: categoryName
-		inDictionaryNamed: selectedBrowserDictionaryName.
+		inDictionaryNamed: (self browserDictionaryNameForWindow: aWindow).
 	(outcome at: #success ifAbsent: [ false ])
 		ifTrue: [
-			selectedBrowserProtocolName ifNil: [ selectedBrowserProtocolName := categoryName ].
+			(self browserProtocolNameForWindow: aWindow) ifNil: [
+				self browserProtocolName: categoryName forWindow: aWindow ].
 			self setStatusMessage: (outcome at: #message ifAbsent: [ 'Method compiled' ]) ]
 		ifFalse: [
 			self setStatusMessage: (outcome at: #message ifAbsent: [ 'Method compile failed' ]) ]
@@ -133,8 +198,69 @@ SigExplorerApplication >> browserCompileSource [
 
 { #category : 'actions' }
 SigExplorerApplication >> browserResetSourceDraft [
-	browserSourceDraftText := nil.
+	^ self browserResetSourceDraftForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> browserResetSourceDraftForWindow: aWindow [
+	self browserSourceDraftText: nil forWindow: aWindow.
 	self setStatusMessage: 'Browser source reset'
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserClassNameForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedBrowserClassName ]
+		ifNotNil: [ aWindow at: #selectedBrowserClassName ifAbsent: [ nil ] ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserClassName: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ selectedBrowserClassName := aString ]
+		ifNotNil: [ aWindow at: #selectedBrowserClassName put: aString ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserProtocolNameForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedBrowserProtocolName ]
+		ifNotNil: [ aWindow at: #selectedBrowserProtocolName ifAbsent: [ nil ] ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserProtocolName: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ selectedBrowserProtocolName := aString ]
+		ifNotNil: [ aWindow at: #selectedBrowserProtocolName put: aString ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserSelectorForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedBrowserSelector ]
+		ifNotNil: [ aWindow at: #selectedBrowserSelector ifAbsent: [ nil ] ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserSelector: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ selectedBrowserSelector := aString ]
+		ifNotNil: [ aWindow at: #selectedBrowserSelector put: aString ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserSourceDraftTextForWindow: aWindow [
+	^ aWindow
+		ifNil: [ browserSourceDraftText ]
+		ifNotNil: [ aWindow at: #browserSourceDraftText ifAbsent: [ nil ] ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> browserSourceDraftText: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ browserSourceDraftText := aString ]
+		ifNotNil: [ aWindow at: #browserSourceDraftText put: aString ]
 ]
 
 { #category : 'actions' }
@@ -735,7 +861,12 @@ SigExplorerApplication >> clearTranscript [
 
 { #category : 'actions' }
 SigExplorerApplication >> clearWorkspaceOutput [
-	workspaceResultText := 'Workspace output cleared.'.
+	^ self clearWorkspaceOutputForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> clearWorkspaceOutputForWindow: aWindow [
+	self workspaceResultText: 'Workspace output cleared.' forWindow: aWindow.
 	self setStatusMessage: 'Workspace output cleared'
 ]
 
@@ -926,6 +1057,112 @@ SigExplorerApplication >> newInspectorWindowForText: aString label: aLabel [
 ]
 
 { #category : 'private' }
+SigExplorerApplication >> auxiliaryWindowTitleForKind: aSymbol number: anInteger [
+	aSymbol = #explorer ifTrue: [ ^ 'Explorer ', anInteger printString ].
+	aSymbol = #workspace ifTrue: [ ^ 'Workspace ', anInteger printString ].
+	aSymbol = #browser ifTrue: [ ^ 'Class Browser ', anInteger printString ].
+	aSymbol = #symbolList ifTrue: [ ^ 'Symbol List Browser ', anInteger printString ].
+	aSymbol = #session ifTrue: [ ^ 'Session ', anInteger printString ].
+	aSymbol = #transcript ifTrue: [ ^ 'Transcript ', anInteger printString ].
+	^ 'Window ', anInteger printString
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> auxiliaryWindowTaskbarLabelForKind: aSymbol number: anInteger [
+	aSymbol = #explorer ifTrue: [ ^ 'Exp ', anInteger printString ].
+	aSymbol = #workspace ifTrue: [ ^ 'Ws ', anInteger printString ].
+	aSymbol = #browser ifTrue: [ ^ 'Br ', anInteger printString ].
+	aSymbol = #symbolList ifTrue: [ ^ 'Sym ', anInteger printString ].
+	aSymbol = #session ifTrue: [ ^ 'Ses ', anInteger printString ].
+	aSymbol = #transcript ifTrue: [ ^ 'Tx ', anInteger printString ].
+	^ 'Win ', anInteger printString
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> auxiliaryWindowPositionForKind: aSymbol index: anInteger [
+	| offset top left width height |
+	offset := (anInteger - 1) \\ 6.
+	aSymbol = #explorer ifTrue: [
+		top := 2.25.
+		left := 2.25.
+		width := 29.
+		height := 34 ].
+	aSymbol = #workspace ifTrue: [
+		top := 2.25.
+		left := 31.
+		width := 50.
+		height := 34 ].
+	aSymbol = #browser ifTrue: [
+		top := 3.5.
+		left := 33.
+		width := 50.
+		height := 31 ].
+	aSymbol = #symbolList ifTrue: [
+		top := 4.
+		left := 73.
+		width := 34.
+		height := 28 ].
+	aSymbol = #session ifTrue: [
+		top := 36.
+		left := 31.
+		width := 24.
+		height := 18 ].
+	aSymbol = #transcript ifTrue: [
+		top := 36.
+		left := 56.
+		width := 35.
+		height := 18 ].
+	top ifNil: [
+		top := 4.
+		left := 4.
+		width := 30.
+		height := 20 ].
+	top := top + (offset * 1.25).
+	left := left + (offset * 1.75).
+	^ 'top: ', top printString, 'rem; left: ', left printString, 'rem; width: ', width printString, 'rem; height: ', height printString, 'rem;'
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> newAuxiliaryWindowForKind: aSymbol [
+	| window windowId windowNumber |
+	windowNumber := nextAuxiliaryWindowNumber := nextAuxiliaryWindowNumber + 1.
+	windowId := 'sig-window-', aSymbol asString, '-aux-', windowNumber printString.
+	window := Dictionary new
+		at: #id put: windowId;
+		at: #kind put: aSymbol;
+		at: #title put: (self auxiliaryWindowTitleForKind: aSymbol number: windowNumber);
+		at: #taskbarLabel put: (self auxiliaryWindowTaskbarLabelForKind: aSymbol number: windowNumber);
+		at: #subtitle put: '';
+		at: #position put: (self auxiliaryWindowPositionForKind: aSymbol index: windowNumber);
+		yourself.
+	aSymbol = #workspace ifTrue: [
+		window
+			at: #workspaceSourceText put: '1 + 2';
+			at: #workspaceResultText put: '' ].
+	aSymbol = #browser ifTrue: [
+		window
+			at: #selectedBrowserDictionaryName put: #UserGlobals;
+			at: #selectedBrowserClassName put: nil;
+			at: #selectedBrowserProtocolName put: nil;
+			at: #selectedBrowserSelector put: nil;
+			at: #browserSourceDraftText put: nil ].
+	aSymbol = #symbolList ifTrue: [
+		window
+			at: #selectedSymbolListDictionaryName put: #UserGlobals;
+			at: #selectedSymbolListEntryKey put: nil ].
+	auxiliaryWindows addLast: window.
+	^ window
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> openAdditionalWindowOfKind: aSymbol [
+	| window |
+	window := self newAuxiliaryWindowForKind: aSymbol.
+	self requestWindowShow: (window at: #id).
+	self setStatusMessage: 'Opened ', (window at: #title)
+]
+
+{ #category : 'private' }
 SigExplorerApplication >> newInspectorWindowForObject: anObject label: aLabel title: aTitle [
 	| inspection window windowId windowNumber |
 	inspection := self gateway inspectionSnapshotFor: anObject.
@@ -978,8 +1215,13 @@ SigExplorerApplication >> inspectSelectedEntry [
 
 { #category : 'actions' }
 SigExplorerApplication >> openSelectedSymbolListEntryInNewWindow [
+	^ self openSelectedSymbolListEntryInNewWindowFor: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> openSelectedSymbolListEntryInNewWindowFor: aWindow [
 	| association window |
-	association := self selectedSymbolListAssociation.
+	association := self selectedSymbolListAssociationForWindow: aWindow.
 	association ifNil: [
 		self setStatusMessage: 'Select a symbol binding before opening it'.
 		^ self ].
@@ -993,8 +1235,13 @@ SigExplorerApplication >> openSelectedSymbolListEntryInNewWindow [
 
 { #category : 'actions' }
 SigExplorerApplication >> inspectSelectedSymbolListEntry [
+	^ self inspectSelectedSymbolListEntryFor: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> inspectSelectedSymbolListEntryFor: aWindow [
 	| association window |
-	association := self selectedSymbolListAssociation.
+	association := self selectedSymbolListAssociationForWindow: aWindow.
 	association ifNil: [
 		self setStatusMessage: 'Select a symbol binding before inspecting it'.
 		^ self ].
@@ -2037,6 +2284,8 @@ SigExplorerApplication >> disconnect [
 	nextDebuggerWindowNumber := 0.
 	inspectorWindows := OrderedCollection new.
 	nextInspectorWindowNumber := 0.
+	auxiliaryWindows := OrderedCollection new.
+	nextAuxiliaryWindowNumber := 0.
 	selectedEntryKey := nil.
 	self clearInspector.
 	self setStatusMessage: 'Gateway state cleared'
@@ -2086,6 +2335,8 @@ SigExplorerApplication >> initialize [
 	nextDebuggerWindowNumber := 0.
 	inspectorWindows := OrderedCollection new.
 	nextInspectorWindowNumber := 0.
+	auxiliaryWindows := OrderedCollection new.
+	nextAuxiliaryWindowNumber := 0.
 	self clearInspector.
 	self addTranscriptLine: 'Desktop ready'
 ]
@@ -2153,6 +2404,11 @@ SigExplorerApplication >> renderClassBrowserColumnOn: html title: aString items:
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderBrowserOn: html [
+	^ self renderBrowserOn: html window: nil
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderBrowserOn: html window: aWindow [
 	html div class: 'cb-wrap'; with: [
 		html div class: 'cb-toolbar'; with: [
 			self renderBrowserToolbarChipOn: html label: 'Find v' accent: false.
@@ -2172,32 +2428,32 @@ SigExplorerApplication >> renderBrowserOn: html [
 				renderClassBrowserColumnOn: html
 				title: 'Dictionaries'
 				items: self browserDictionaryNames
-				selected: selectedBrowserDictionaryName asString
-				callback: [ :each | self selectBrowserDictionaryNamed: each ]
+				selected: (self browserDictionaryNameForWindow: aWindow) asString
+				callback: [ :each | self selectBrowserDictionaryNamed: each forWindow: aWindow ]
 				filterPlaceholder: 'Filter dictionaries'.
 			html div class: 'cb-splitter'; with: ''.
 			self
 				renderClassBrowserColumnOn: html
 				title: 'Classes'
-				items: (self browserClassAssociations collect: [ :each | each key asString ])
-				selected: selectedBrowserClassName
-				callback: [ :each | self selectBrowserClassNamed: each asString ]
+				items: ((self browserClassAssociationsForWindow: aWindow) collect: [ :each | each key asString ])
+				selected: (self browserClassNameForWindow: aWindow)
+				callback: [ :each | self selectBrowserClassNamed: each asString forWindow: aWindow ]
 				filterPlaceholder: 'Filter classes'.
 			html div class: 'cb-splitter'; with: ''.
 			self
 				renderClassBrowserColumnOn: html
 				title: 'Categories'
-				items: self browserProtocolNames
-				selected: selectedBrowserProtocolName
-				callback: [ :each | self selectBrowserProtocolNamed: each asString ]
+				items: (self browserProtocolNamesForWindow: aWindow)
+				selected: (self browserProtocolNameForWindow: aWindow)
+				callback: [ :each | self selectBrowserProtocolNamed: each asString forWindow: aWindow ]
 				filterPlaceholder: 'Filter categories'.
 			html div class: 'cb-splitter'; with: ''.
 			self
 				renderClassBrowserColumnOn: html
 				title: 'Methods'
-				items: self browserSelectorNames
-				selected: selectedBrowserSelector
-				callback: [ :each | self selectBrowserSelectorNamed: each asString ]
+				items: (self browserSelectorNamesForWindow: aWindow)
+				selected: (self browserSelectorForWindow: aWindow)
+				callback: [ :each | self selectBrowserSelectorNamed: each asString forWindow: aWindow ]
 				filterPlaceholder: 'Filter methods' ].
 			html div class: 'cb-source-wrap'; with: [
 				html form
@@ -2207,15 +2463,15 @@ SigExplorerApplication >> renderBrowserOn: html [
 						html div class: 'cb-source-hdr'; with: [
 							html div class: 'cb-source-title-group'; with: [
 								html span: 'Source'.
-								html span class: 'cb-source-note'; with: self browserSourceHeadingText ].
+								html span class: 'cb-source-note'; with: (self browserSourceHeadingTextForWindow: aWindow) ].
 							html div class: 'cb-source-actions'; with: [
 								html submitButton
 									class: 'btn-ghost cb-source-btn';
-									callback: [ self browserResetSourceDraft ];
+									callback: [ self browserResetSourceDraftForWindow: aWindow ];
 									with: 'Revert'.
 								html submitButton
 									class: 'btn cb-source-btn';
-									callback: [ self browserCompileSource ];
+									callback: [ self browserCompileSourceForWindow: aWindow ];
 									with: 'Compile' ] ].
 						html div class: 'cb-source sig-scroll-pane'; with: [
 							html textArea
@@ -2224,8 +2480,33 @@ SigExplorerApplication >> renderBrowserOn: html [
 								attributeAt: 'wrap' put: 'off';
 								attributeAt: 'placeholder' put: 'Smalltalk method source';
 								rows: 18;
-								callback: [ :value | browserSourceDraftText := value ];
-								value: self browserEditableSourceText ] ] ] ]
+								callback: [ :value | self browserSourceDraftText: value forWindow: aWindow ];
+								value: (self browserEditableSourceTextForWindow: aWindow) ] ] ] ]
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderAuxiliaryWindowOn: html window: aWindow [
+	| kind |
+	kind := aWindow at: #kind ifAbsent: [ #explorer ].
+	kind = #explorer ifTrue: [ ^ self renderExplorerOn: html ].
+	kind = #workspace ifTrue: [ ^ self renderWorkspaceOn: html window: aWindow ].
+	kind = #browser ifTrue: [ ^ self renderBrowserOn: html window: aWindow ].
+	kind = #symbolList ifTrue: [ ^ self renderSymbolListBrowserOn: html window: aWindow ].
+	kind = #session ifTrue: [ ^ self renderSessionOn: html ].
+	kind = #transcript ifTrue: [ ^ self renderTranscriptOn: html ].
+	self renderExplorerOn: html
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderAuxiliaryWindowsOn: html [
+	auxiliaryWindows do: [ :each |
+		self
+			renderFloatingWindowOn: html
+			id: (each at: #id)
+			title: (each at: #title)
+			subtitle: (each at: #subtitle)
+			position: (each at: #position)
+			with: [ :body | self renderAuxiliaryWindowOn: body window: each ] ]
 ]
 
 { #category : 'rendering' }
@@ -2291,6 +2572,7 @@ SigExplorerApplication >> renderContentOn: html [
 				subtitle: ''
 				position: (self hiddenWindowPosition: 'top: 36rem; left: 56rem; width: 35rem; height: 18rem;')
 				with: [ :body | self renderTranscriptOn: body ].
+			self renderAuxiliaryWindowsOn: desktop.
 			self renderInspectorWindowsOn: desktop.
 			self renderExceptionDebuggerWindowsOn: desktop ].
 	self renderTaskBarOn: html
@@ -2309,24 +2591,17 @@ SigExplorerApplication >> renderDesktopContextMenuOn: html [
 		with: [
 				html div class: 'sig-context-group'; with: [
 					html paragraph class: 'sig-context-title'; with: 'Windows'.
-					self renderLocalWindowCommandOn: html label: 'Open Explorer' target: 'sig-window-explorer'.
-					self renderLocalWindowCommandOn: html label: 'Open Workspace' target: 'sig-window-workspace'.
-					self renderLocalWindowCommandOn: html label: 'Open Class Browser' target: 'sig-window-browser'.
-					self renderLocalWindowCommandOn: html label: 'Open Symbol List Browser' target: 'sig-window-symbol-list'.
-					self renderLocalWindowCommandOn: html label: 'Open Inspector' target: 'sig-window-inspector'.
-					inspectorWindows do: [ :each |
+					self renderContextActionOn: html label: 'Open Explorer' callback: [ self openAdditionalWindowOfKind: #explorer ].
+					self renderContextActionOn: html label: 'Open Workspace' callback: [ self openAdditionalWindowOfKind: #workspace ].
+					self renderContextActionOn: html label: 'Open Class Browser' callback: [ self openAdditionalWindowOfKind: #browser ].
+					self renderContextActionOn: html label: 'Open Symbol List Browser' callback: [ self openAdditionalWindowOfKind: #symbolList ].
+					auxiliaryWindows do: [ :each |
 						self
 							renderLocalWindowCommandOn: html
 							label: ('Open ', (each at: #title))
 							target: (each at: #id) ].
-					self renderLocalWindowCommandOn: html label: 'Open Debugger' target: 'sig-window-debugger'.
-					debuggerWindows do: [ :each |
-						self
-							renderLocalWindowCommandOn: html
-							label: ('Open ', (each at: #title))
-							target: (each at: #id) ].
-					self renderLocalWindowCommandOn: html label: 'Open Session' target: 'sig-window-session'.
-					self renderLocalWindowCommandOn: html label: 'Open Transcript' target: 'sig-window-transcript' ].
+					self renderContextActionOn: html label: 'Open Session' callback: [ self openAdditionalWindowOfKind: #session ].
+					self renderContextActionOn: html label: 'Open Transcript' callback: [ self openAdditionalWindowOfKind: #transcript ] ].
 					html div class: 'sig-context-group'; with: [
 						html paragraph class: 'sig-context-title'; with: 'Arrange'.
 						self renderLocalDesktopActionOn: html label: 'Cascade Windows' action: 'cascade'.
@@ -2886,6 +3161,15 @@ SigExplorerApplication >> renderLocalWindowCommandOn: html label: aLabel target:
 ]
 
 { #category : 'rendering' }
+SigExplorerApplication >> renderContextActionOn: html label: aLabel callback: aBlock [
+	html anchor
+		class: 'sig-local-command';
+		attributeAt: 'data-sig-remote' put: 'true';
+		callback: aBlock;
+		with: aLabel
+]
+
+{ #category : 'rendering' }
 SigExplorerApplication >> renderLocalDesktopActionOn: html label: aLabel action: anAction [
 	html anchor
 		class: 'sig-local-command';
@@ -2909,40 +3193,11 @@ SigExplorerApplication >> renderMenuBarOn: html [
 		bar div class: 'sig-menu-brand'; with: 'GemStone Desktop'.
 		bar div class: 'sig-menu-strip'; with: [ :strip |
 			self renderMenuDropdownOn: strip label: 'Windows' with: [ :menu |
-				self renderMenuWindowCommandOn: menu label: 'Explorer' target: 'sig-window-explorer'.
-				self renderMenuWindowCommandOn: menu label: 'Workspace' target: 'sig-window-workspace'.
-				self renderMenuWindowCommandOn: menu label: 'Class Browser' target: 'sig-window-browser'.
-				self renderMenuWindowCommandOn: menu label: 'Symbol List Browser' target: 'sig-window-symbol-list'.
-				self renderMenuWindowCommandOn: menu label: 'Inspector' target: 'sig-window-inspector'.
-				inspectorWindows do: [ :each |
-					self
-						renderMenuWindowCommandOn: menu
-						label: (each at: #title)
-						target: (each at: #id) ].
-				self renderMenuWindowCommandOn: menu label: 'Debugger' target: 'sig-window-debugger'.
-				debuggerWindows do: [ :each |
-					self
-						renderMenuWindowCommandOn: menu
-						label: (each at: #title)
-						target: (each at: #id) ].
-				self renderMenuWindowCommandOn: menu label: 'Session' target: 'sig-window-session'.
-				self renderMenuWindowCommandOn: menu label: 'Transcript' target: 'sig-window-transcript' ].
-			self renderMenuDropdownOn: strip label: 'Arrange' with: [ :menu |
-				self renderMenuDesktopActionOn: menu label: 'Cascade Windows' action: 'cascade'.
-				self renderMenuDesktopActionOn: menu label: 'Tile Windows' action: 'tile'.
-				self renderMenuDesktopActionOn: menu label: 'Show All Windows' action: 'show-all'.
-				self renderMenuDesktopActionOn: menu label: 'Minimise All Windows' action: 'minimise-all' ].
+				self renderWindowMenuItemsOn: menu ].
 			self renderMenuDropdownOn: strip label: 'Session' with: [ :menu |
-				self renderMenuActionOn: menu label: 'Refresh' callback: [ self refresh ].
-				self renderMenuActionOn: menu label: 'Commit' callback: [ self commitTransaction ].
-				self renderMenuActionOn: menu label: 'Abort' callback: [ self abortTransaction ].
-				self renderMenuActionOn: menu label: 'Capture Walkback' callback: [ self captureDebuggerSnapshot ].
-				self renderMenuActionOn: menu label: 'Disconnect' callback: [ self disconnect ] ].
-			self renderMenuDropdownOn: strip label: 'Workspace' with: [ :menu |
-				self renderMenuWindowCommandOn: menu label: 'Open Workspace' target: 'sig-window-workspace'.
-				self renderMenuWindowCommandOn: menu label: 'Open Transcript' target: 'sig-window-transcript'.
-				self renderMenuActionOn: menu label: 'Clear Output' callback: [ self clearWorkspaceOutput ].
-				self renderMenuActionOn: menu label: 'Clear Transcript' callback: [ self clearTranscript ] ] ].
+				self renderSessionMenuItemsOn: menu ].
+			self renderMenuDropdownOn: strip label: 'Arrange' with: [ :menu |
+				self renderArrangeMenuItemsOn: menu ] ].
 		bar div class: 'sig-menu-status'; with: [
 			bar span class: 'sig-session-label'; with: self gateway connectionSummary.
 			statusMessage ifNotNil: [
@@ -3033,7 +3288,7 @@ SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitl
 			html div class: 'exp-wrap inspector-wrap'; with: [
 				html div class: 'exp-section inspector-section inspector-summary'; with: [
 					html div class: 'exp-pane-title'; with: rowsTitle.
-					html div class: 'sig-scroll-pane exp-scroll inspector-scroll inspector-scroll-short'; with: [
+					html div class: 'sig-scroll-pane exp-scroll inspector-scroll'; with: [
 						html table class: 'sig-table exp-table'; with: [
 							html tableHead: [
 								html tableRow: [
@@ -3054,7 +3309,7 @@ SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitl
 												ifFalse: [ html text: (each at: #value ifAbsent: [ '' ]) ] ] ] ] ] ] ] ].
 				html div class: 'exp-section inspector-section inspector-print'; with: [
 					html div class: 'exp-pane-title'; with: 'PrintString'.
-					html div class: 'sig-scroll-pane exp-scroll inspector-scroll inspector-scroll-tall'; with: [
+					html div class: 'sig-scroll-pane exp-scroll inspector-scroll'; with: [
 						html preformatted class: 'sig-pre'; with: aString ] ] ] ]
 		ifFalse: [
 			html div class: 'sig-source-window'; with: [
@@ -3130,6 +3385,19 @@ SigExplorerApplication >> renderTaskBarOn: html [
 		class: 'sig-taskbar';
 		with: [
 			html div class: 'sig-taskbar-brand'; with: 'GemStone Desktop'.
+			html div class: 'sig-taskbar-strip sig-taskbar-strip-secondary sig-taskbar-strip-menus'; with: [ :strip |
+				self renderMenuDropdownOn: strip label: 'Windows' with: [ :menu |
+					self renderWindowMenuItemsOn: menu ].
+				self renderMenuDropdownOn: strip label: 'Session' with: [ :menu |
+					self renderSessionMenuItemsOn: menu ].
+				self renderMenuDropdownOn: strip label: 'Arrange' with: [ :menu |
+					self renderArrangeMenuItemsOn: menu ] ].
+				html div class: 'sig-taskbar-strip sig-taskbar-strip-secondary'; with: [
+					self renderTaskBarActionCommandOn: html label: 'Cascade' action: 'cascade'.
+					self renderTaskBarActionCommandOn: html label: 'Tile' action: 'tile'.
+					self renderTaskBarActionCommandOn: html label: 'Show All' action: 'show-all'.
+					self renderTaskBarActionCommandOn: html label: 'Minimise All' action: 'minimise-all'.
+					self renderTaskBarActionCommandOn: html label: 'Close All' action: 'close-all' ].
 			html div class: 'sig-taskbar-strip'; with: [
 				self renderTaskBarWindowCommandOn: html label: 'Explorer' target: 'sig-window-explorer' pinned: true.
 				self renderTaskBarWindowCommandOn: html label: 'Workspace' target: 'sig-window-workspace' pinned: true.
@@ -3147,23 +3415,13 @@ SigExplorerApplication >> renderTaskBarOn: html [
 						renderTaskBarWindowCommandOn: html
 						label: (each at: #taskbarLabel)
 						target: (each at: #id) ].
+				auxiliaryWindows do: [ :each |
+					self
+						renderTaskBarWindowCommandOn: html
+						label: (each at: #taskbarLabel)
+						target: (each at: #id) ].
 				self renderTaskBarWindowCommandOn: html label: 'Session' target: 'sig-window-session'.
 				self renderTaskBarWindowCommandOn: html label: 'Transcript' target: 'sig-window-transcript' ].
-				html div class: 'sig-taskbar-strip sig-taskbar-strip-secondary'; with: [
-					self renderTaskBarActionCommandOn: html label: 'Cascade' action: 'cascade'.
-					self renderTaskBarActionCommandOn: html label: 'Tile' action: 'tile'.
-					self renderTaskBarActionCommandOn: html label: 'Show All' action: 'show-all'.
-					self renderTaskBarActionCommandOn: html label: 'Minimise All' action: 'minimise-all'.
-					self renderTaskBarActionCommandOn: html label: 'Close All' action: 'close-all' ].
-			html div class: 'sig-taskbar-strip sig-taskbar-strip-secondary sig-taskbar-strip-menus'; with: [ :strip |
-				self renderMenuDropdownOn: strip label: 'Windows' with: [ :menu |
-					self renderWindowMenuItemsOn: menu ].
-				self renderMenuDropdownOn: strip label: 'Arrange' with: [ :menu |
-					self renderArrangeMenuItemsOn: menu ].
-				self renderMenuDropdownOn: strip label: 'Session' with: [ :menu |
-					self renderSessionMenuItemsOn: menu ].
-				self renderMenuDropdownOn: strip label: 'Workspace' with: [ :menu |
-					self renderWorkspaceMenuItemsOn: menu ] ].
 			html div class: 'sig-taskbar-status'; with: [
 				html span class: 'sig-taskbar-session'; with: self gateway connectionSummary.
 				statusMessage ifNotNil: [
@@ -3199,24 +3457,17 @@ SigExplorerApplication >> renderTaskBarWindowCommandOn: html label: aLabel targe
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderWindowMenuItemsOn: html [
-	self renderMenuWindowCommandOn: html label: 'Explorer' target: 'sig-window-explorer'.
-	self renderMenuWindowCommandOn: html label: 'Workspace' target: 'sig-window-workspace'.
-	self renderMenuWindowCommandOn: html label: 'Class Browser' target: 'sig-window-browser'.
-	self renderMenuWindowCommandOn: html label: 'Symbol List Browser' target: 'sig-window-symbol-list'.
-	self renderMenuWindowCommandOn: html label: 'Inspector' target: 'sig-window-inspector'.
-	inspectorWindows do: [ :each |
+	self renderMenuActionOn: html label: 'Explorer' callback: [ self openAdditionalWindowOfKind: #explorer ].
+	self renderMenuActionOn: html label: 'Workspace' callback: [ self openAdditionalWindowOfKind: #workspace ].
+	self renderMenuActionOn: html label: 'Class Browser' callback: [ self openAdditionalWindowOfKind: #browser ].
+	self renderMenuActionOn: html label: 'Symbol List Browser' callback: [ self openAdditionalWindowOfKind: #symbolList ].
+	auxiliaryWindows do: [ :each |
 		self
 			renderMenuWindowCommandOn: html
 			label: (each at: #title)
 			target: (each at: #id) ].
-	self renderMenuWindowCommandOn: html label: 'Debugger' target: 'sig-window-debugger'.
-	debuggerWindows do: [ :each |
-		self
-			renderMenuWindowCommandOn: html
-			label: (each at: #title)
-			target: (each at: #id) ].
-	self renderMenuWindowCommandOn: html label: 'Session' target: 'sig-window-session'.
-	self renderMenuWindowCommandOn: html label: 'Transcript' target: 'sig-window-transcript'
+	self renderMenuActionOn: html label: 'Session' callback: [ self openAdditionalWindowOfKind: #session ].
+	self renderMenuActionOn: html label: 'Transcript' callback: [ self openAdditionalWindowOfKind: #transcript ]
 ]
 
 { #category : 'rendering' }
@@ -3229,12 +3480,38 @@ SigExplorerApplication >> renderArrangeMenuItemsOn: html [
 ]
 
 { #category : 'rendering' }
+SigExplorerApplication >> renderBrowserMenuItemsOn: html [
+	self renderMenuActionOn: html label: 'Open Class Browser' callback: [ self openAdditionalWindowOfKind: #browser ].
+	self renderMenuActionOn: html label: 'Compile' callback: [ self browserCompileSource ].
+	self renderMenuActionOn: html label: 'Revert Source' callback: [ self browserResetSourceDraft ]
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderExplorerMenuItemsOn: html [
+	self renderMenuActionOn: html label: 'Open Explorer' callback: [ self openAdditionalWindowOfKind: #explorer ].
+	self renderMenuActionOn: html label: 'Open Selection' callback: [ self openSelectedEntryInNewWindow ]
+]
+
+{ #category : 'rendering' }
 SigExplorerApplication >> renderSessionMenuItemsOn: html [
 	self renderMenuActionOn: html label: 'Refresh' callback: [ self refresh ].
 	self renderMenuActionOn: html label: 'Commit' callback: [ self commitTransaction ].
 	self renderMenuActionOn: html label: 'Abort' callback: [ self abortTransaction ].
 	self renderMenuActionOn: html label: 'Capture Walkback' callback: [ self captureDebuggerSnapshot ].
 	self renderMenuActionOn: html label: 'Disconnect' callback: [ self disconnect ]
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderSymbolListMenuItemsOn: html [
+	self renderMenuActionOn: html label: 'Open Symbol List Browser' callback: [ self openAdditionalWindowOfKind: #symbolList ].
+	self renderMenuActionOn: html label: 'Open Selection' callback: [ self openSelectedSymbolListEntryInNewWindow ]
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderTranscriptMenuItemsOn: html [
+	self renderMenuActionOn: html label: 'Open Transcript' callback: [ self openAdditionalWindowOfKind: #transcript ].
+	self renderMenuActionOn: html label: 'Clear Transcript' callback: [ self clearTranscript ].
+	self renderMenuActionOn: html label: 'Capture Walkback' callback: [ self captureDebuggerSnapshot ]
 ]
 
 { #category : 'rendering' }
@@ -3265,15 +3542,20 @@ SigExplorerApplication >> renderTranscriptOn: html [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderWorkspaceOn: html [
+	^ self renderWorkspaceOn: html window: nil
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 	html div class: 'sig-workspace-shell'; with: [
 		html div class: 'ws-history sig-scroll-pane'; with: [
 			html div class: 'ws-entry'; with: [
 				html div class: 'ws-code'; with: [
-					html preformatted class: 'sig-pre'; with: workspaceSourceText ].
+					html preformatted class: 'sig-pre'; with: (self workspaceSourceTextForWindow: aWindow) ].
 				html div
 					class: (self workspaceHasCapturedFailure ifTrue: [ 'ws-result error' ] ifFalse: [ 'ws-result' ]);
 					with: [
-						html span class: 'ws-result-text'; with: workspaceResultText ] ] ].
+						html span class: 'ws-result-text'; with: (self workspaceResultTextForWindow: aWindow) ] ] ].
 		html form
 			class: 'sig-workspace-form';
 			attributeAt: 'data-sig-remote' put: 'true';
@@ -3285,31 +3567,31 @@ SigExplorerApplication >> renderWorkspaceOn: html [
 						attributeAt: 'wrap' put: 'off';
 						attributeAt: 'placeholder' put: 'Smalltalk expression... (Ctrl+Enter)';
 						rows: 8;
-						callback: [ :value | workspaceSourceText := value ];
-						value: workspaceSourceText.
+						callback: [ :value | self workspaceSourceText: value forWindow: aWindow ];
+						value: (self workspaceSourceTextForWindow: aWindow).
 					html div class: 'ws-controls'; with: [
 						| doItButton |
 						doItButton := html submitButton.
 						doItButton
 							class: 'btn';
 							attributeAt: 'data-sig-primary-submit' put: 'workspace-doit';
-							callback: [ self workspaceDoIt ];
+							callback: [ self workspaceDoItForWindow: aWindow ];
 							with: 'Do it'.
 						html submitButton
 							class: 'btn-ghost';
-							callback: [ self workspacePrintIt ];
+							callback: [ self workspacePrintItForWindow: aWindow ];
 							with: 'Print it'.
 						html submitButton
 							class: 'btn-ghost';
-							callback: [ self workspaceInspectIt ];
+							callback: [ self workspaceInspectItForWindow: aWindow ];
 							with: 'Inspect it'.
 						html submitButton
 							class: 'btn-ghost';
-							callback: [ self workspaceDebugIt ];
+							callback: [ self workspaceDebugItForWindow: aWindow ];
 							with: 'Debug it'.
 						html submitButton
 							class: 'btn-ghost';
-							callback: [ self clearWorkspaceOutput ];
+							callback: [ self clearWorkspaceOutputForWindow: aWindow ];
 							with: 'Clear'.
 						html span class: 'ws-hint'; with: 'Ctrl+Enter' ] ].
 				html div class: 'txbar'; with: [
@@ -3374,9 +3656,30 @@ SigExplorerApplication >> selectedSymbolListAssociation [
 		ifNone: [ nil ]
 ]
 
+{ #category : 'querying' }
+SigExplorerApplication >> selectedSymbolListAssociationForWindow: aWindow [
+	(self selectedSymbolListEntryKeyForWindow: aWindow) ifNil: [ ^ nil ].
+	^ (self symbolListEntryAssociationsForWindow: aWindow)
+		detect: [ :each | each key asString = (self selectedSymbolListEntryKeyForWindow: aWindow) ]
+		ifNone: [ nil ]
+]
+
+{ #category : 'querying' }
+SigExplorerApplication >> symbolListEntryAssociationsForWindow: aWindow [
+	^ self gateway
+		symbolListEntryAssociationsForDictionaryNamed: (self selectedSymbolListDictionaryNameForWindow: aWindow)
+]
+
 { #category : 'accessing' }
 SigExplorerApplication >> selectedSymbolListDictionaryName [
 	^ selectedSymbolListDictionaryName
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> selectedSymbolListDictionaryNameForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedSymbolListDictionaryName ]
+		ifNotNil: [ aWindow at: #selectedSymbolListDictionaryName ifAbsent: [ #UserGlobals ] ]
 ]
 
 { #category : 'accessing' }
@@ -3385,8 +3688,29 @@ SigExplorerApplication >> selectedSymbolListEntryKey [
 ]
 
 { #category : 'accessing' }
+SigExplorerApplication >> selectedSymbolListEntryKeyForWindow: aWindow [
+	^ aWindow
+		ifNil: [ selectedSymbolListEntryKey ]
+		ifNotNil: [ aWindow at: #selectedSymbolListEntryKey ifAbsent: [ nil ] ]
+]
+
+{ #category : 'accessing' }
 SigExplorerApplication >> workspaceResultText [
 	^ workspaceResultText
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> workspaceResultTextForWindow: aWindow [
+	^ aWindow
+		ifNil: [ workspaceResultText ]
+		ifNotNil: [ aWindow at: #workspaceResultText ifAbsent: [ '' ] ]
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> workspaceResultText: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ workspaceResultText := aString ]
+		ifNotNil: [ aWindow at: #workspaceResultText put: aString ]
 ]
 
 { #category : 'accessing' }
@@ -3395,8 +3719,22 @@ SigExplorerApplication >> workspaceSourceText [
 ]
 
 { #category : 'accessing' }
+SigExplorerApplication >> workspaceSourceTextForWindow: aWindow [
+	^ aWindow
+		ifNil: [ workspaceSourceText ]
+		ifNotNil: [ aWindow at: #workspaceSourceText ifAbsent: [ '1 + 2' ] ]
+]
+
+{ #category : 'accessing' }
 SigExplorerApplication >> workspaceSourceText: aString [
 	workspaceSourceText := aString
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> workspaceSourceText: aString forWindow: aWindow [
+	aWindow
+		ifNil: [ workspaceSourceText := aString ]
+		ifNotNil: [ aWindow at: #workspaceSourceText put: aString ]
 ]
 
 { #category : 'accessing' }
@@ -3412,6 +3750,11 @@ SigExplorerApplication >> inspectorLabel [
 { #category : 'accessing' }
 SigExplorerApplication >> inspectorWindows [
 	^ inspectorWindows
+]
+
+{ #category : 'accessing' }
+SigExplorerApplication >> auxiliaryWindows [
+	^ auxiliaryWindows
 ]
 
 { #category : 'accessing' }
@@ -3469,35 +3812,57 @@ SigExplorerApplication >> selectedSymbolListSummary [
 
 { #category : 'actions' }
 SigExplorerApplication >> selectBrowserClassNamed: aString [
-	selectedBrowserClassName := aString.
-	selectedBrowserProtocolName := nil.
-	selectedBrowserSelector := nil.
-	browserSourceDraftText := nil.
+	^ self selectBrowserClassNamed: aString forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectBrowserClassNamed: aString forWindow: aWindow [
+	self browserClassName: aString forWindow: aWindow.
+	self browserProtocolName: nil forWindow: aWindow.
+	self browserSelector: nil forWindow: aWindow.
+	self browserSourceDraftText: nil forWindow: aWindow.
 	self setStatusMessage: 'Browsing class ', aString
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> selectBrowserDictionaryNamed: aSymbol [
-	selectedBrowserDictionaryName := aSymbol.
-	selectedBrowserClassName := nil.
-	selectedBrowserProtocolName := nil.
-	selectedBrowserSelector := nil.
-	browserSourceDraftText := nil.
+	^ self selectBrowserDictionaryNamed: aSymbol forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectBrowserDictionaryNamed: aSymbol forWindow: aWindow [
+	aWindow
+		ifNil: [ selectedBrowserDictionaryName := aSymbol ]
+		ifNotNil: [ aWindow at: #selectedBrowserDictionaryName put: aSymbol ].
+	self browserClassName: nil forWindow: aWindow.
+	self browserProtocolName: nil forWindow: aWindow.
+	self browserSelector: nil forWindow: aWindow.
+	self browserSourceDraftText: nil forWindow: aWindow.
 	self setStatusMessage: 'Browsing dictionary ', aSymbol asString
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> selectBrowserProtocolNamed: aString [
-	selectedBrowserProtocolName := aString.
-	selectedBrowserSelector := nil.
-	browserSourceDraftText := nil.
+	^ self selectBrowserProtocolNamed: aString forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectBrowserProtocolNamed: aString forWindow: aWindow [
+	self browserProtocolName: aString forWindow: aWindow.
+	self browserSelector: nil forWindow: aWindow.
+	self browserSourceDraftText: nil forWindow: aWindow.
 	self setStatusMessage: 'Browsing protocol ', aString
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> selectBrowserSelectorNamed: aString [
-	selectedBrowserSelector := aString.
-	browserSourceDraftText := nil.
+	^ self selectBrowserSelectorNamed: aString forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectBrowserSelectorNamed: aString forWindow: aWindow [
+	self browserSelector: aString forWindow: aWindow.
+	self browserSourceDraftText: nil forWindow: aWindow.
 	self setStatusMessage: 'Inspecting method ', aString
 ]
 
@@ -3521,18 +3886,35 @@ SigExplorerApplication >> selectRootNamed: aSymbol [
 
 { #category : 'actions' }
 SigExplorerApplication >> selectSymbolListDictionaryNamed: aSymbol [
-	selectedSymbolListDictionaryName := aSymbol.
-	selectedSymbolListEntryKey := nil.
-	self clearInspector.
+	^ self selectSymbolListDictionaryNamed: aSymbol forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectSymbolListDictionaryNamed: aSymbol forWindow: aWindow [
+	aWindow
+		ifNil: [
+			selectedSymbolListDictionaryName := aSymbol.
+			selectedSymbolListEntryKey := nil ]
+		ifNotNil: [
+			aWindow at: #selectedSymbolListDictionaryName put: aSymbol.
+			aWindow at: #selectedSymbolListEntryKey put: nil ].
+	aWindow ifNil: [ self clearInspector ].
 	self setStatusMessage: 'Browsing symbol dictionary ', aSymbol asString
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> selectSymbolListEntryKey: aString [
+	^ self selectSymbolListEntryKey: aString forWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> selectSymbolListEntryKey: aString forWindow: aWindow [
 	| association |
-	selectedSymbolListEntryKey := aString.
-	association := self selectedSymbolListAssociation.
-	association ifNotNil: [
+	aWindow
+		ifNil: [ selectedSymbolListEntryKey := aString ]
+		ifNotNil: [ aWindow at: #selectedSymbolListEntryKey put: aString ].
+	association := self selectedSymbolListAssociationForWindow: aWindow.
+	(aWindow isNil and: [ association ifNotNil: [ true ] ifNil: [ false ] ]) ifTrue: [
 		self showInspectorForObject: association value label: 'Symbol List / ', aString ].
 	self setStatusMessage: 'Selected symbol binding ', aString
 ]
@@ -3555,47 +3937,54 @@ SigExplorerApplication >> transcriptPreviewOf: aString [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderSymbolListBrowserOn: html [
+	^ self renderSymbolListBrowserOn: html window: nil
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderSymbolListBrowserOn: html window: aWindow [
 	| association |
-	association := self selectedSymbolListAssociation.
-	html div class: 'exp-wrap'; with: [
+	association := self selectedSymbolListAssociationForWindow: aWindow.
+	html div class: 'exp-wrap slb-wrap'; with: [
 		html div class: 'exp-toolbar'; with: [
 			html div class: 'exp-toolbar-group'; with: [
 				html span class: 'exp-toolbar-label'; with: 'Dictionary'.
-				html span class: 'exp-toolbar-value'; with: selectedSymbolListDictionaryName asString ].
+				html span class: 'exp-toolbar-value'; with: (self selectedSymbolListDictionaryNameForWindow: aWindow) asString ].
 			html div class: 'exp-toolbar-group'; with: [
 				html span class: 'exp-toolbar-label'; with: 'Selection'.
 				html span
 					class: 'exp-toolbar-value';
-					with: (selectedSymbolListEntryKey ifNil: [ 'None' ] ifNotNil: [ selectedSymbolListEntryKey ]) ] ].
-		html div class: 'exp-main-grid'; with: [
+					with: ((self selectedSymbolListEntryKeyForWindow: aWindow)
+						ifNil: [ 'None' ]
+						ifNotNil: [ self selectedSymbolListEntryKeyForWindow: aWindow ]) ] ].
+		html div class: 'exp-main-grid slb-main-grid'; with: [
 			html div class: 'exp-pane'; with: [
 				html div class: 'exp-pane-title'; with: 'Dictionaries'.
-				html div class: 'sig-scroll-pane exp-list'; with: [
+				html div class: 'sig-scroll-pane exp-list exp-scroll exp-scroll-rows-10'; with: [
 					html unorderedList class: 'exp-list-entries'; with: [
 						self symbolListDictionaryNames do: [ :each |
 							html listItem: [
 								html anchor
-									class: (each asString = selectedSymbolListDictionaryName asString
+									class: (each asString = (self selectedSymbolListDictionaryNameForWindow: aWindow) asString
 										ifTrue: [ 'exp-item selected' ]
 										ifFalse: [ 'exp-item' ]);
 									attributeAt: 'data-sig-remote' put: 'true';
-									callback: [ self selectSymbolListDictionaryNamed: each ];
+									callback: [ self selectSymbolListDictionaryNamed: each forWindow: aWindow ];
 									with: each asString ] ] ] ] ].
 			html div class: 'exp-pane'; with: [
 				html div class: 'exp-pane-title'; with: 'Bindings'.
-				html div class: 'sig-scroll-pane exp-list'; with: [
-					self symbolListEntryAssociations isEmpty
+				html div class: 'sig-scroll-pane exp-list exp-scroll exp-scroll-rows-10'; with: [
+					(self symbolListEntryAssociationsForWindow: aWindow) isEmpty
 						ifTrue: [ html paragraph class: 'sig-window-note'; with: 'No bindings.' ]
 						ifFalse: [
 							html unorderedList class: 'exp-list-entries'; with: [
-								self symbolListEntryAssociations do: [ :each |
+								(self symbolListEntryAssociationsForWindow: aWindow) do: [ :each |
 									html listItem: [
 										html anchor
-											class: (each key asString = selectedSymbolListEntryKey
+											class: (each key asString = (self selectedSymbolListEntryKeyForWindow: aWindow)
 												ifTrue: [ 'exp-item selected' ]
 												ifFalse: [ 'exp-item' ]);
 											attributeAt: 'data-sig-remote' put: 'true';
-											callback: [ self selectSymbolListEntryKey: each key asString ];
+											callback: [ self selectSymbolListEntryKey: each key asString forWindow: aWindow ];
 											with: each key asString ] ] ] ] ] ] ].
 		html div class: 'exp-selection-row'; with: [
 			html span class: 'exp-selection-label'; with: 'Selection'.
@@ -3605,12 +3994,12 @@ SigExplorerApplication >> renderSymbolListBrowserOn: html [
 					ifNil: [ 'No symbol binding selected.' ]
 					ifNotNil: [ association key asString ]) ].
 		html div class: 'sig-command-row exp-command-row'; with: [
-			self renderActionLinkOn: html label: 'Open' callback: [ self openSelectedSymbolListEntryInNewWindow ].
-			self renderActionLinkOn: html label: 'Inspect' callback: [ self inspectSelectedSymbolListEntry ] ].
-		html div class: 'exp-detail-grid'; with: [
+			self renderActionLinkOn: html label: 'Open' callback: [ self openSelectedSymbolListEntryInNewWindowFor: aWindow ].
+			self renderActionLinkOn: html label: 'Inspect' callback: [ self inspectSelectedSymbolListEntryFor: aWindow ] ].
+		html div class: 'exp-detail-grid slb-detail-grid'; with: [
 			html div class: 'exp-pane'; with: [
 				html div class: 'exp-pane-title'; with: 'Keys / Values'.
-				html div class: 'sig-scroll-pane'; with: [
+				html div class: 'sig-scroll-pane exp-scroll slb-detail-scroll'; with: [
 					association
 						ifNil: [ html paragraph class: 'sig-window-note'; with: 'Select a binding to inspect its value.' ]
 						ifNotNil: [
@@ -3628,7 +4017,7 @@ SigExplorerApplication >> renderSymbolListBrowserOn: html [
 										html tableData: association value class name asString ] ] ] ] ] ].
 			html div class: 'exp-pane'; with: [
 				html div class: 'exp-pane-title'; with: 'PrintString'.
-				html div class: 'sig-scroll-pane exp-print-pane'; with: [
+				html div class: 'sig-scroll-pane exp-scroll exp-print-pane slb-print-pane'; with: [
 					html preformatted class: 'sig-pre'; with: (association
 						ifNil: [ 'Nothing selected.' ]
 						ifNotNil: [ self gateway longDisplayStringFor: association value ]) ] ] ] ]
@@ -4180,26 +4569,33 @@ a:hover {
 }
 
 .exp-wrap {
-		display: flex;
-		flex-direction: column;
-		flex: 0 0 auto;
-		gap: 0.35rem;
-		min-height: max-content;
-		padding: 0.35rem;
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-		font-size: 0.8rem;
-		line-height: 1.42;
-		overflow-x: auto;
-		overflow-y: scroll;
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	gap: 0.35rem;
+	min-height: max-content;
+	padding: 0.35rem;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 0.8rem;
+	line-height: 1.42;
+	overflow-x: auto;
+	overflow-y: scroll;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(137, 180, 250, 0.55) rgba(17, 17, 27, 0.42);
 }
 
+.slb-wrap {
+	flex: 1 1 auto;
+	min-height: 0;
+	height: 100%;
+	overflow: hidden;
+}
+
 .inspector-wrap {
 		display: grid;
-		grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-rows: minmax(0, 1.9fr) minmax(6.5rem, 0.45fr);
 		flex: 1 1 auto;
 		min-height: 0;
 		height: 100%;
@@ -4303,10 +4699,20 @@ a:hover {
 
 .exp-main-grid,
 .exp-detail-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.55rem;
-		align-items: start;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.55rem;
+	align-items: start;
+}
+
+.slb-main-grid,
+.slb-detail-grid {
+	align-items: stretch;
+	min-height: 0;
+}
+
+.slb-detail-grid {
+	flex: 1 1 auto;
 }
 
 .exp-section {
@@ -4337,20 +4743,24 @@ a:hover {
 }
 
 .exp-pane {
-		display: flex;
-		flex-direction: column;
-		gap: 0.45rem;
-		padding: 0.38rem 0.42rem;
-		min-height: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	padding: 0.38rem 0.42rem;
+	min-height: auto;
+}
+
+.slb-wrap .exp-pane {
+	min-height: 0;
 }
 
 .exp-scroll {
-		overflow-x: auto;
-		overflow-y: scroll;
-		padding: 0.28rem 0.3rem;
-		background: #171c22;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+	overflow-x: auto;
+	overflow-y: scroll;
+	padding: 0.28rem 0.3rem;
+	background: #171c22;
+	border: 1px solid #323a44;
+	border-radius: 3px;
 }
 
 .exp-scroll-short {
@@ -4371,10 +4781,26 @@ a:hover {
 }
 
 .inspector-scroll {
-		flex: 1 1 0;
-		min-height: 0;
-		max-height: none;
-		box-sizing: border-box;
+	flex: 1 1 0;
+	min-height: 0;
+	max-height: none;
+	box-sizing: border-box;
+}
+
+.exp-list {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.slb-detail-scroll,
+.slb-print-pane {
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: none;
+}
+
+.slb-print-pane {
+	min-height: 6rem;
 }
 
 .exp-list-entries {
@@ -5966,8 +6392,15 @@ SigExplorerApplication >> updateRoot: anHtmlRoot [
 
 { #category : 'actions' }
 SigExplorerApplication >> workspaceDebugIt [
+	^ self workspaceDebugItForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> workspaceDebugItForWindow: aWindow [
 	| hadFailure |
-	workspaceResultText := self gateway workspaceDebugIt: workspaceSourceText.
+	self
+		workspaceResultText: (self gateway workspaceDebugIt: (self workspaceSourceTextForWindow: aWindow))
+		forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
 		ifTrue: [
@@ -5977,39 +6410,66 @@ SigExplorerApplication >> workspaceDebugIt [
 			self refreshBaseDebuggerStateFromGateway.
 			self requestWindowShow: 'sig-window-debugger'.
 			self setStatusMessage: 'Workspace debug run completed' ].
-	self addTranscriptLine: 'Workspace debug output: ', (self transcriptPreviewOf: workspaceResultText)
+	self
+		addTranscriptLine: 'Workspace debug output: ',
+			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> workspaceDoIt [
+	^ self workspaceDoItForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> workspaceDoItForWindow: aWindow [
 	| hadFailure |
-	workspaceResultText := self gateway workspaceDoIt: workspaceSourceText.
+	self
+		workspaceResultText: (self gateway workspaceDoIt: (self workspaceSourceTextForWindow: aWindow))
+		forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
 		ifTrue: [
 			self requestExceptionDebuggerForLastError.
 			self setStatusMessage: 'Workspace do it failed' ]
 		ifFalse: [ self setStatusMessage: 'Workspace do it completed' ].
-	self addTranscriptLine: 'Workspace result: ', (self transcriptPreviewOf: workspaceResultText)
+	self
+		addTranscriptLine: 'Workspace result: ',
+			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> workspacePrintIt [
+	^ self workspacePrintItForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> workspacePrintItForWindow: aWindow [
 	| hadFailure |
-	workspaceResultText := self gateway workspaceDoIt: workspaceSourceText.
+	self
+		workspaceResultText: (self gateway workspaceDoIt: (self workspaceSourceTextForWindow: aWindow))
+		forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
 		ifTrue: [
 			self requestExceptionDebuggerForLastError.
 			self setStatusMessage: 'Workspace print it failed' ]
 		ifFalse: [ self setStatusMessage: 'Workspace print it completed' ].
-	self addTranscriptLine: 'Workspace print it: ', (self transcriptPreviewOf: workspaceResultText)
+	self
+		addTranscriptLine: 'Workspace print it: ',
+			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))
 ]
 
 { #category : 'actions' }
 SigExplorerApplication >> workspaceInspectIt [
+	^ self workspaceInspectItForWindow: nil
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> workspaceInspectItForWindow: aWindow [
 	| hadFailure |
-	workspaceResultText := self gateway workspaceInspectIt: workspaceSourceText.
+	self
+		workspaceResultText: (self gateway workspaceInspectIt: (self workspaceSourceTextForWindow: aWindow))
+		forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
 		ifTrue: [
@@ -6017,7 +6477,9 @@ SigExplorerApplication >> workspaceInspectIt [
 			self setStatusMessage: 'Workspace inspect failed' ]
 		ifFalse: [ self setStatusMessage: 'Workspace inspect completed' ].
 	hadFailure ifFalse: [
-		self showInspectorText: workspaceResultText label: 'Workspace result'.
+		self showInspectorText: (self workspaceResultTextForWindow: aWindow) label: 'Workspace result'.
 		self requestWindowShow: 'sig-window-inspector' ].
-	self addTranscriptLine: 'Workspace inspect output: ', (self transcriptPreviewOf: workspaceResultText)
+	self
+		addTranscriptLine: 'Workspace inspect output: ',
+			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))
 ]
