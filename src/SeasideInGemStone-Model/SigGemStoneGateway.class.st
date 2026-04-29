@@ -177,6 +177,39 @@ SigGemStoneGateway >> commitTransactionOrSignalConflict [
 		ifUnavailable: [ false ]
 ]
 
+{ #category : 'actions' }
+SigGemStoneGateway >> compileMethodSource: sourceString forClassNamed: aClassName protocolNamed: aProtocolName inDictionaryNamed: aSymbol [
+	^ self
+		withErrorHandlingDo: [
+			| behavior categoryName |
+			behavior := self classForDictionaryNamed: aSymbol classNamed: aClassName.
+			behavior ifNil: [
+				^ Dictionary new
+					at: #success put: false;
+					at: #message put: 'Select a class before compiling.';
+					yourself ].
+			categoryName := (aProtocolName ifNil: [ 'as yet unclassified' ] ifNotNil: [ aProtocolName ]) asString.
+			[
+				behavior
+					compileMethod: sourceString
+					category: categoryName asSymbol.
+				Dictionary new
+					at: #success put: true;
+					at: #message put: 'Compiled ', behavior name asString, ' in ', categoryName;
+					yourself ]
+				on: Error
+				do: [ :ex |
+					Dictionary new
+						at: #success put: false;
+						at: #message put: ex description;
+						yourself ] ]
+		ifUnavailable: [
+			Dictionary new
+				at: #success put: false;
+				at: #message put: 'GemStone is unavailable for compilation.';
+				yourself ]
+]
+
 { #category : 'accessing' }
 SigGemStoneGateway >> connectionSummary [
 	^ 'current GemStone session'
@@ -185,6 +218,13 @@ SigGemStoneGateway >> connectionSummary [
 { #category : 'accessing' }
 SigGemStoneGateway >> currentSession [
 	^ GsCurrentSession currentSession
+]
+
+{ #category : 'accessing' }
+SigGemStoneGateway >> currentUserId [
+	^ self
+		withErrorHandlingDo: [ System myUserProfile userId asString ]
+		ifUnavailable: [ 'DataCurator' ]
 ]
 
 { #category : 'querying' }
@@ -217,6 +257,86 @@ SigGemStoneGateway >> displayStringFor: anObject [
 	^ text size > 160
 		ifTrue: [ (text first: 157), '...' ]
 		ifFalse: [ text ]
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionRowsFor: anObject [
+	| rows limit index |
+	(anObject isKindOf: Association) ifTrue: [
+		^ {
+			self inspectionRowKey: 'key' value: anObject key.
+			self inspectionRowKey: 'value' value: anObject value } ].
+	(anObject isKindOf: Dictionary) ifTrue: [
+		rows := OrderedCollection new.
+		limit := 50.
+		index := 0.
+		anObject associationsDo: [ :each |
+			index := index + 1.
+			index <= limit ifTrue: [
+				rows add: (self inspectionRowKey: each key value: each value) ] ].
+		^ rows asArray ].
+	((anObject isKindOf: Collection) and: [ (anObject isKindOf: String) not ]) ifTrue: [
+		rows := OrderedCollection new.
+		limit := 50.
+		index := 0.
+		anObject do: [ :each |
+			index := index + 1.
+			index <= limit ifTrue: [
+				rows add: (self inspectionRowKey: index printString value: each) ] ].
+		^ rows asArray ].
+	rows := OrderedCollection new.
+	[ anObject class allInstVarNames withIndexDo: [ :each :instVarIndex |
+		rows add: (self inspectionRowKey: each asString value: (anObject instVarAt: instVarIndex)) ] ]
+		on: Error
+		do: [ :ex | rows := OrderedCollection new ].
+	rows isEmpty ifTrue: [ ^ self inspectionSummaryRowsFor: anObject ].
+	^ rows asArray
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> inspectionRowKey: aKey value: aValue [
+	^ Dictionary new
+		at: #key put: aKey asString;
+		at: #value put: (self displayStringFor: aValue);
+		at: #object put: aValue;
+		yourself
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionRowsTitleFor: anObject [
+	((anObject isKindOf: Dictionary)
+		or: [ (anObject isKindOf: Collection) and: [ (anObject isKindOf: String) not ] ])
+		ifTrue: [ ^ 'Index / Values' ].
+	(anObject isKindOf: Association) ifTrue: [ ^ 'Key / Values' ].
+	(anObject isBehavior) ifTrue: [ ^ 'Class Details' ].
+	^ 'Details'
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionSnapshotFor: anObject [
+	^ Dictionary new
+		at: #rowsTitle put: (self inspectionRowsTitleFor: anObject);
+		at: #rows put: (self inspectionRowsFor: anObject);
+		at: #printString put: (self longDisplayStringFor: anObject);
+		yourself
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionSummaryRowsFor: anObject [
+	| rows |
+	rows := OrderedCollection new.
+	(anObject isBehavior) ifTrue: [
+		rows add: (self inspectionRowKey: 'Name' value: ([ anObject name ] on: Error do: [ anObject ])).
+		[ rows add: (self inspectionRowKey: 'Superclass' value: anObject superclass) ]
+			on: Error
+			do: [ :ex | nil ].
+		rows add: (self inspectionRowKey: 'Class' value: anObject class).
+		^ rows asArray ].
+	rows add: (self inspectionRowKey: 'Class' value: anObject class).
+	[ rows add: (self inspectionRowKey: 'Size' value: anObject size) ]
+		on: Error
+		do: [ :ex | nil ].
+	^ rows asArray
 ]
 
 { #category : 'private' }

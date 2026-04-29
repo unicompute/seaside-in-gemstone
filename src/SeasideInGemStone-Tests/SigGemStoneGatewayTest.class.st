@@ -571,3 +571,23 @@ SigGemStoneGatewayTest >> testWorkspaceInspectIncludesClassName [
 	self assert: (result includesString: 'Class: SmallInteger').
 	self assert: (result includesString: 'Print String:')
 ]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testInspectionRowsCarryInspectableObjects [
+	| rows |
+	rows := gateway inspectionRowsFor: #(1 2 3).
+
+	self assert: rows size equals: 3.
+	self assert: (rows first includesKey: #object).
+	self assert: (rows first at: #object) equals: 1
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testInspectionRowsForClassFallbackToSummaryRows [
+	| rows |
+	rows := gateway inspectionRowsFor: Object.
+
+	self assert: rows isEmpty not.
+	self assert: (rows first at: #key) equals: 'Name'.
+	self assert: (rows first includesKey: #object)
+]

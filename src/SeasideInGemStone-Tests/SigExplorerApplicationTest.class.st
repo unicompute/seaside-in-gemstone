@@ -82,7 +82,110 @@ SigExplorerApplicationTest >> testSelectingSymbolListDictionaryClearsSelectedBin
 { #category : 'tests' }
 SigExplorerApplicationTest >> testWorkspaceDefaultsArePopulated [
 	self assert: application workspaceSourceText size > 0.
-	self assert: application workspaceResultText size > 0
+	self assert: application workspaceResultText equals: ''
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testExplorerRenderUsesBridgeStyleBrowserShell [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderExplorerOn:) asString.
+
+	self assert: (source includesString: 'exp-wrap').
+	self assert: (source includesString: 'Symbol List for').
+	self assert: (source includesString: 'currentUserId').
+	self assert: (source includesString: 'exp-split').
+	self deny: (source includesString: 'attributeAt: ''disabled'' put: ''disabled''').
+	self deny: (source includesString: 'with: ''Root''').
+	self deny: (source includesString: 'with: ''Selection''').
+	self assert: (source includesString: 'exp-scroll-rows-10').
+	self assert: (source includesString: 'rowsTitle :=').
+	self assert: (source includesString: 'inspectionSnapshotFor: association value').
+	self assert: (source includesString: 'PrintString').
+	self assert: (source includesString: 'openSelectedEntryInNewWindow').
+	self assert: (source includesString: 'inspector-value-link').
+	self assert: (source includesString: 'inspectStructuredInspectorRow:').
+	self deny: (source includesString: 'label: ''Inspect''')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderSymbolListBrowserUsesOpenWindowAction [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderSymbolListBrowserOn:) asString.
+
+	self assert: (source includesString: 'exp-wrap').
+	self assert: (source includesString: 'Keys / Values').
+	self assert: (source includesString: 'PrintString').
+	self assert: (source includesString: 'openSelectedSymbolListEntryInNewWindow').
+	self assert: (source includesString: 'inspectSelectedSymbolListEntry')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testNewInspectorWindowTracksAdditionalObjectWindows [
+	| window |
+	window := application
+		newInspectorWindowForText: 'Class: SmallInteger'
+		label: 'Explorer / Answer'.
+
+	self assert: application inspectorWindows size equals: 1.
+	self assert: (window at: #id) equals: 'sig-window-object-1'.
+	self assert: (window at: #taskbarLabel) equals: 'Obj 1'.
+	self assert: (window at: #label) equals: 'Explorer / Answer'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testNewInspectorWindowForObjectBuildsStructuredRows [
+	| window rows |
+	window := application
+		newInspectorWindowForObject: #(1 2 3)
+		label: 'Explorer / Numbers'
+		title: 'Numbers'.
+	rows := window at: #rows.
+
+	self assert: application inspectorWindows size equals: 1.
+	self assert: (window at: #title) equals: 'Numbers'.
+	self assert: (window at: #taskbarLabel) equals: 'Numbers'.
+	self assert: (window at: #rowsTitle) equals: 'Index / Values'.
+	self assert: rows size equals: 3.
+	self assert: (rows first includesKey: #object).
+	self assert: (rows first at: #key) equals: '1'.
+	self assert: (rows first at: #value) equals: '1'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testNewInspectorWindowForClassBuildsStructuredSummaryRows [
+	| window rows |
+	window := application
+		newInspectorWindowForObject: Object
+		label: 'Symbols / Object'
+		title: 'Object'.
+	rows := window at: #rows.
+
+	self assert: (window at: #rowsTitle) equals: 'Class Details'.
+	self assert: rows isEmpty not.
+	self assert: (rows first at: #key) equals: 'Name'.
+	self assert: (rows first includesKey: #object)
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderInspectorContentsUsesInspectableValueLinks [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderInspectorContentsOn:label:rowsTitle:rows:text:) asString.
+
+	self assert: (source includesString: 'inspector-wrap').
+	self assert: (source includesString: 'inspector-value-link').
+	self assert: (source includesString: 'inspectStructuredInspectorRow:')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderBrowserUsesEditableSourceForm [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderBrowserOn:) asString.
+
+	self assert: (source includesString: 'cb-source-form').
+	self assert: (source includesString: 'html textArea').
+	self assert: (source includesString: 'cb-source-editor').
+	self assert: (source includesString: 'browserCompileSource').
+	self assert: (source includesString: 'browserResetSourceDraft')
 ]
 
 { #category : 'tests' }
@@ -152,6 +255,15 @@ SigExplorerApplicationTest >> testWorkspaceInspectItShowsInspectorWindow [
 	self assert: application inspectorLabel equals: 'Workspace result'.
 	self assert: (application inspectorText includesString: 'Class: SmallInteger').
 	self assert: application consumePendingWindowIdToShow equals: 'sig-window-inspector'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testBaseInspectorWindowPositionIsVisibleWhenRequested [
+	application requestWindowShow: 'sig-window-inspector'.
+
+	self
+		assert: application baseInspectorWindowPosition
+		equals: 'top: 18rem; left: 48rem; width: 28rem; height: 23rem;'
 ]
 
 { #category : 'tests' }
@@ -296,7 +408,46 @@ SigExplorerApplicationTest >> testDebuggerSourceRendererUsesInlineCursorClasses 
 
 	self assert: (renderSource includesString: 'dbg-step-cursor').
 	self assert: (renderSource includesString: 'dbg-source-lno').
+	self assert: (renderSource includesString: 'debuggerResolvedSourceLocationFor:').
+	self assert: (renderSource includesString: 'debuggerSourceLineRecordsFor: aFrame').
 	self assert: (renderText includesString: 'dbg-inline-cursor')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerDefaultCursorColumnUsesFirstVisibleCharacter [
+	self assert: (application debuggerDefaultCursorColumnForLine: '   "comment" 1/0') equals: 14.
+	self assert: (application debuggerDefaultCursorColumnForLine: '   "comment only"   ') equals: nil.
+	self assert: (application debuggerDefaultCursorColumnForLine: '') equals: nil
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerSourceLineNumberKeepsCommentsAndBlankLinesButHighlightsExecutableStep [
+	| frame |
+	frame := Dictionary new
+		at: #level put: 1;
+		at: #description put: 'Executed code';
+		at: #lineNumber put: 1;
+		at: #quickStepPoint put: 4;
+		at: #sourceText put: '"comment"', String lf, '', String lf, '1/0';
+		yourself.
+
+	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 3.
+	self assert: (application debuggerResolvedSourceLocationFor: frame) equals: #(3 1)
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerSourceLineRecordsRetainCommentOnlyAndBlankExecutedLines [
+	| frame records |
+	frame := Dictionary new
+		at: #level put: 1;
+		at: #description put: 'Executed code';
+		at: #lineNumber put: 1;
+		at: #quickStepPoint put: 4;
+		at: #sourceText put: '"comment"', String lf, '1 + 2.', String lf, '', String lf, '1/0';
+		yourself.
+	records := application debuggerSourceLineRecordsFor: frame.
+
+	self assert: records equals: #((1 '"comment"') (2 '1 + 2.') (3 '') (4 '1/0'))
 ]
 
 { #category : 'tests' }
@@ -324,6 +475,40 @@ SigExplorerApplicationTest >> testDebuggerSourceCursorLocationUsesStepOffsetInsi
 		yourself.
 
 	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 11)
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerExecutedCodeAdvancesVisibleStepToNextExecutableLineWhenOffsetsRepeatOnSameLine [
+	| frame |
+	frame := Dictionary new
+		at: #className put: 'SigWorkspaceEvaluator';
+		at: #selectorName put: 'sigWorkspaceABC123';
+		at: #description put: '[] in SigWorkspaceEvaluator >> sigWorkspaceABC123';
+		at: #quickStepPoint put: 2;
+		at: #sourceOffsets put: #(1 3 10 16);
+		at: #sourceText put: '1 + 2.', String lf, '', String lf, '1+1.', String lf, '', String lf, '1/0';
+		yourself.
+
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(3 1).
+	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 3.
+	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @2 line 3'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerExecutedCodeKeepsSecondStatementOnSameLineVisible [
+	| frame |
+	frame := Dictionary new
+		at: #className put: 'SigWorkspaceEvaluator';
+		at: #selectorName put: 'sigWorkspaceABC123';
+		at: #description put: '[] in SigWorkspaceEvaluator >> sigWorkspaceABC123';
+		at: #quickStepPoint put: 4;
+		at: #sourceOffsets put: #(1 3 9 14 20);
+		at: #sourceText put: '1 + 2.', String lf, '', String lf, '1/1. 4*4.', String lf, '', String lf, '1/0';
+		yourself.
+
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(3 6).
+	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 3.
+	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @4 line 3'
 ]
 
 { #category : 'tests' }
@@ -540,7 +725,10 @@ SigExplorerApplicationTest >> testDebuggerStylesAllowWholeTabPanelScrolling [
 	style := application stylesheet.
 
 	self assert: (style includesString: '.sig-debugger-shell').
-	self assert: (style includesString: 'overflow-y: auto;')
+	self assert: (style includesString: '.sig-debugger-tab-panel').
+	self assert: (style includesString: 'overflow-y: scroll;').
+	self assert: (style includesString: '.sig-floating-window').
+	self assert: (style includesString: 'scrollbar-gutter: stable both-edges;')
 ]
 
 { #category : 'tests' }
@@ -562,7 +750,11 @@ SigExplorerApplicationTest >> testStylesheetIncludesElegantSharedWindowChrome [
 	self assert: (style includesString: '.sig-action,').
 	self assert: (style includesString: '.sig-local-command').
 	self assert: (style includesString: '.sig-window-body input[type="text"]').
-	self assert: (style includesString: '.sig-sidebar > h3')
+	self assert: (style includesString: '.sig-sidebar > h3').
+	self assert: (style includesString: '.sig-workspace-shell').
+	self assert: (style includesString: '.cb-wrap').
+	self assert: (style includesString: '.cb-source-form').
+	self assert: (style includesString: '.cb-source-editor')
 ]
 
 { #category : 'tests' }
@@ -605,7 +797,8 @@ SigExplorerApplicationTest >> testRenderContentDoesNotIncludeTopMenuBar [
 	| source |
 	source := (SigExplorerApplication sourceCodeAt: #renderContentOn:) asString.
 
-	self deny: (source includesString: 'self renderMenuBarOn: html.')
+	self deny: (source includesString: 'self renderMenuBarOn: html.').
+	self assert: (source includesString: 'renderInspectorWindowsOn: desktop')
 ]
 
 { #category : 'tests' }
@@ -639,5 +832,6 @@ SigExplorerApplicationTest >> testRenderFloatingWindowUsesMacStyleWindowControls
 	self assert: (source includesString: 'sig-window-control collapse').
 	self assert: (source includesString: 'sig-window-control expand').
 	self assert: (source includesString: 'data-sig-window-action').
-	self assert: (source includesString: 'Minimise window')
+	self assert: (source includesString: 'Minimise window').
+	self assert: (source includesString: 'aSubtitle isEmpty ifFalse:')
 ]
