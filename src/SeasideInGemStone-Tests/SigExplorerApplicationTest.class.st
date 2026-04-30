@@ -150,7 +150,7 @@ SigExplorerApplicationTest >> testNewInspectorWindowForObjectBuildsStructuredRow
 	self assert: application inspectorWindows size equals: 1.
 	self assert: (window at: #title) equals: 'Numbers'.
 	self assert: (window at: #taskbarLabel) equals: 'Numbers'.
-	self assert: (window at: #rowsTitle) equals: 'Index / Values'.
+	self assert: (window at: #rowsTitle) equals: 'Indexes'.
 	self assert: rows size equals: 3.
 	self assert: (rows first includesKey: #object).
 	self assert: (rows first at: #key) equals: '1'.
@@ -175,9 +175,11 @@ SigExplorerApplicationTest >> testNewInspectorWindowForClassBuildsStructuredSumm
 { #category : 'tests' }
 SigExplorerApplicationTest >> testRenderInspectorContentsUsesInspectableValueLinks [
 	| source |
-	source := (SigExplorerApplication sourceCodeAt: #renderInspectorContentsOn:label:rowsTitle:rows:text:) asString.
+	source := (SigExplorerApplication sourceCodeAt: #renderInspectorContentsOn:label:className:displayString:rowsTitle:rows:text:) asString.
 
 	self assert: (source includesString: 'inspector-wrap').
+	self assert: (source includesString: 'inspector-keys').
+	self assert: (source includesString: 'inspector-values').
 	self assert: (source includesString: 'inspector-value-link').
 	self assert: (source includesString: 'inspectStructuredInspectorRow:')
 ]
@@ -207,6 +209,21 @@ SigExplorerApplicationTest >> testOpenAdditionalWindowOfKindCreatesAuxiliaryBrow
 	self assert: (window at: #selectedBrowserDictionaryName) equals: #UserGlobals.
 	self assert: (window at: #selectedBrowserClassName) isNil.
 	self assert: application consumePendingWindowIdToShow equals: 'sig-window-browser-aux-1'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testCloseAllTransientWindowsClearsDynamicWindows [
+	application newAuxiliaryWindowForKind: #workspace.
+	application newInspectorWindowForText: 'hello' label: 'Test'.
+	application debuggerWindows addLast: Dictionary new.
+	application requestWindowShow: 'sig-window-workspace-aux-1'.
+
+	application closeAllTransientWindows.
+
+	self assert: application auxiliaryWindows isEmpty.
+	self assert: application inspectorWindows isEmpty.
+	self assert: application debuggerWindows isEmpty.
+	self assert: application consumePendingWindowIdToShow isNil
 ]
 
 { #category : 'tests' }
@@ -328,13 +345,17 @@ SigExplorerApplicationTest >> testWorkspaceDebugItSuccessShowsBaseDebuggerWindow
 
 { #category : 'tests' }
 SigExplorerApplicationTest >> testWorkspaceInspectItShowsInspectorWindow [
+	| window |
 	application workspaceSourceText: '1 + 2'.
 
 	application workspaceInspectIt.
 
-	self assert: application inspectorLabel equals: 'Workspace result'.
-	self assert: (application inspectorText includesString: 'Class: SmallInteger').
-	self assert: application consumePendingWindowIdToShow equals: 'sig-window-inspector'
+	self assert: application inspectorWindows size equals: 1.
+	window := application inspectorWindows last.
+	self assert: window label equals: 'Workspace result'.
+	self assert: window className equals: 'SmallInteger'.
+	self assert: window rows isEmpty not.
+	self assert: application consumePendingWindowIdToShow equals: window windowId
 ]
 
 { #category : 'tests' }
@@ -352,7 +373,8 @@ SigExplorerApplicationTest >> testWorkspacePrintItUsesPrintedResult [
 
 	application workspacePrintIt.
 
-	self assert: application workspaceResultText equals: '=> 3'.
+	self assert: application workspaceSourceText equals: '1 + 2 "=> 3"'.
+	self assert: application workspaceResultText equals: ''.
 	self assert: (application transcriptEntries last includesString: 'Workspace print it')
 ]
 
@@ -901,7 +923,33 @@ SigExplorerApplicationTest >> testRenderContentDoesNotIncludeTopMenuBar [
 	source := (SigExplorerApplication sourceCodeAt: #renderContentOn:) asString.
 
 	self deny: (source includesString: 'self renderMenuBarOn: html.').
+	self assert: (source includesString: 'renderGemStoneLogoOn: desktop').
 	self assert: (source includesString: 'renderInspectorWindowsOn: desktop')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderGemStoneLogoUsesSingleElement [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderGemStoneLogoOn:) asString.
+
+	self assert: (source includesString: 'id: ''sig-gemstone-logo''').
+	self assert: (source includesString: 'html image').
+	self assert: (source includesString: 'gemStoneLogoPngDataUri').
+	self assert: (source includesString: 'attributeAt: ''src'' put: self gemStoneLogoPngDataUri').
+	self deny: (source includesString: 'url: self gemStoneLogoPngDataUri').
+	self deny: (source includesString: 'sig-logo-triangle').
+	self deny: (source includesString: 'triangles do:').
+	self deny: (source includesString: 'data:image/svg')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testGemStoneLogoPngDataUriIsCompletePngPayload [
+	| dataUri |
+	dataUri := SigExplorerApplication new gemStoneLogoPngDataUri.
+
+	self assert: (dataUri includesString: 'data:image/png;base64,iVBORw0KGgo').
+	self assert: dataUri size equals: 6570.
+	self deny: (dataUri includesString: 'data:image/svg')
 ]
 
 { #category : 'tests' }
@@ -934,6 +982,15 @@ SigExplorerApplicationTest >> testRenderArrangeMenuIncludesCloseAllWindows [
 
 	self assert: (source includesString: 'label: ''Close All Windows''').
 	self assert: (source includesString: 'action: ''close-all''')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testRenderTaskBarIncludesCloseAllRemoteForm [
+	| source |
+	source := (SigExplorerApplication sourceCodeAt: #renderTaskBarOn:) asString.
+
+	self assert: (source includesString: 'data-sig-close-all-windows').
+	self assert: (source includesString: 'closeAllTransientWindows')
 ]
 
 { #category : 'tests' }

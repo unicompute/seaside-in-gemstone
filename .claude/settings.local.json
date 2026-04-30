@@ -35,7 +35,8 @@
       "Bash(kill 48172)",
       "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image test \"SeasideInGemStone-Tests\")",
       "Bash(kill 59241 49964)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 *)"
     ]
   }
 }

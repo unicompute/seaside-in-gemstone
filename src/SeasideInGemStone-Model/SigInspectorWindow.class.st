@@ -10,7 +10,9 @@ Class {
 		'label',
 		'text',
 		'rowsTitle',
-		'rows'
+		'rows',
+		'className',
+		'displayString'
 	],
 	#category : 'SeasideInGemStone-Model',
 	#package : 'SeasideInGemStone-Model'
@@ -50,7 +52,9 @@ SigInspectorWindow >> initializeWithId: anId title: aTitle taskbarLabel: aTaskba
 	label := aLabel.
 	text := aText ifNil: [ 'Nothing selected for inspection.' ].
 	rowsTitle := 'Details'.
-	rows := #()
+	rows := #().
+	className := ''.
+	displayString := ''
 ]
 
 { #category : 'initialization' }
@@ -63,7 +67,9 @@ SigInspectorWindow >> initializeWithId: anId title: aTitle taskbarLabel: aTaskba
 	label := aLabel.
 	rowsTitle := aRowsTitle.
 	rows := rowsArray.
-	text := aText ifNil: [ 'Nothing selected for inspection.' ]
+	text := aText ifNil: [ 'Nothing selected for inspection.' ].
+	className := ''.
+	displayString := ''
 ]
 
 { #category : 'accessing' }
@@ -111,6 +117,33 @@ SigInspectorWindow >> rows [
 	^ rows
 ]
 
+{ #category : 'accessing' }
+SigInspectorWindow >> className [
+	^ className
+]
+
+{ #category : 'accessing' }
+SigInspectorWindow >> className: aString [
+	className := aString
+]
+
+{ #category : 'accessing' }
+SigInspectorWindow >> displayString [
+	^ displayString
+]
+
+{ #category : 'accessing' }
+SigInspectorWindow >> displayString: aString [
+	displayString := aString
+]
+
+{ #category : 'compatibility' }
+SigInspectorWindow >> at: aKey [
+	^ self
+		at: aKey
+		ifAbsent: [ self error: 'Unknown inspector window key: ', aKey asString ]
+]
+
 { #category : 'compatibility' }
 SigInspectorWindow >> at: aKey ifAbsent: aBlock [
 	aKey = #id ifTrue: [ ^ windowId ].
@@ -122,5 +155,7 @@ SigInspectorWindow >> at: aKey ifAbsent: aBlock [
 	aKey = #rowsTitle ifTrue: [ ^ rowsTitle ].
 	aKey = #rows ifTrue: [ ^ rows ].
 	aKey = #text ifTrue: [ ^ text ].
+	aKey = #className ifTrue: [ ^ className ].
+	aKey = #displayString ifTrue: [ ^ displayString ].
 	^ aBlock value
 ]

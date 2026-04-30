@@ -352,19 +352,15 @@ SigExplorerApplication >> debuggerFrameSourceStatusTextFor: aFrame [
 { #category : 'private' }
 SigExplorerApplication >> debuggerFrameExecutedCodeLabelFor: aFrame [
 	| lineNumber stepPoint stream |
-	aFrame ifNil: [ ^ 'Executed code' ].
-	stepPoint := aFrame at: #quickStepPoint ifAbsent: [ nil ].
-	lineNumber := self debuggerFrameSourceLineNumberFor: aFrame.
+	aFrame ifNil: [ ^ 'Executed code @1 line 1' ].
+	stepPoint := (aFrame at: #quickStepPoint ifAbsent: [ nil ]) ifNil: [ 1 ].
+	lineNumber := (self debuggerFrameSourceLineNumberFor: aFrame) ifNil: [ 1 ].
 	stream := WriteStream on: String new.
-	stream nextPutAll: 'Executed code'.
-	stepPoint ifNotNil: [
-		stream
-			nextPutAll: ' @';
-			nextPutAll: stepPoint printString ].
-	lineNumber ifNotNil: [
-		stream
-			nextPutAll: ' line ';
-			nextPutAll: lineNumber printString ].
+	stream
+		nextPutAll: 'Executed code @';
+		nextPutAll: stepPoint printString;
+		nextPutAll: ' line ';
+		nextPutAll: lineNumber printString.
 	^ stream contents
 ]
 
@@ -752,10 +748,21 @@ SigExplorerApplication >> debuggerSessionStatusTextForState: aState [
 
 { #category : 'private' }
 SigExplorerApplication >> debuggerVisibleFramesInState: aState [
-	| frames |
+	| executedLevel frames |
 	frames := self debuggerFramesInState: aState.
 	(aState at: #showBridgeFrames ifAbsent: [ false ]) ifTrue: [ ^ frames ].
-	^ frames reject: [ :each | each at: #isBridge ifAbsent: [ false ] ]
+	frames := frames reject: [ :each | each at: #isBridge ifAbsent: [ false ] ].
+	executedLevel := (frames detect: [ :each | self debuggerFrameIsExecutedCode: each ] ifNone: [ nil ])
+		ifNil: [ nil ]
+		ifNotNil: [ :f | f at: #level ifAbsent: [ nil ] ].
+	executedLevel ifNil: [ ^ frames ].
+	^ frames reject: [ :each |
+		| level |
+		level := each at: #level ifAbsent: [ 0 ].
+		level < executedLevel and: [
+			(each at: #isInfrastructure ifAbsent: [ false ])
+				or: [ (each at: #className ifAbsent: [ '' ]) = 'SigWorkspaceEvaluator' ]
+				or: [ (each at: #sourceText ifAbsent: [ '' ]) isEmpty ] ] ]
 ]
 
 { #category : 'private' }
@@ -834,6 +841,15 @@ SigExplorerApplication >> clearWorkspaceOutput [
 SigExplorerApplication >> clearWorkspaceOutputForWindow: aWindow [
 	self workspaceResultText: 'Workspace output cleared.' forWindow: aWindow.
 	self setStatusMessage: 'Workspace output cleared'
+]
+
+{ #category : 'actions' }
+SigExplorerApplication >> closeAllTransientWindows [
+	auxiliaryWindows := OrderedCollection new.
+	inspectorWindows := OrderedCollection new.
+	debuggerWindows := OrderedCollection new.
+	pendingWindowIdToShow := nil.
+	self setStatusMessage: 'Closed all windows'
 ]
 
 { #category : 'actions' }
@@ -1143,9 +1159,16 @@ SigExplorerApplication >> openAdditionalWindowOfKind: aSymbol [
 
 { #category : 'private' }
 SigExplorerApplication >> newInspectorWindowForObject: anObject label: aLabel title: aTitle [
-	| inspection window windowNumber windowTitle |
+	^ self
+		newInspectorWindowForSnapshot: (self gateway inspectionSnapshotFor: anObject)
+		label: aLabel
+		title: aTitle
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> newInspectorWindowForSnapshot: anInspection label: aLabel title: aTitle [
+	| window windowNumber windowTitle |
 	self pruneOldInspectorWindows.
-	inspection := self gateway inspectionSnapshotFor: anObject.
 	windowNumber := nextInspectorWindowNumber := nextInspectorWindowNumber + 1.
 	windowTitle := aTitle ifNil: [ self inspectorWindowTitleForWindowNumber: windowNumber ].
 	window := SigInspectorWindow
@@ -1154,9 +1177,11 @@ SigExplorerApplication >> newInspectorWindowForObject: anObject label: aLabel ti
 		taskbarLabel: (aTitle ifNil: [ self inspectorTaskbarLabelForWindowNumber: windowNumber ])
 		position: (self inspectorWindowPositionForIndex: windowNumber)
 		label: aLabel
-		rowsTitle: (inspection at: #rowsTitle ifAbsent: [ 'Index / Values' ])
-		rows: (inspection at: #rows ifAbsent: [ #() ])
-		text: (inspection at: #printString ifAbsent: [ self gateway longDisplayStringFor: anObject ]).
+		rowsTitle: (anInspection at: #rowsTitle ifAbsent: [ 'Details' ])
+		rows: (anInspection at: #rows ifAbsent: [ #() ])
+		text: (anInspection at: #printString ifAbsent: [ '' ]).
+	window className: (anInspection at: #className ifAbsent: [ '' ]).
+	window displayString: (anInspection at: #displayString ifAbsent: [ '' ]).
 	inspectorWindows addLast: window.
 	^ window
 ]
@@ -1388,6 +1413,20 @@ SigExplorerApplication >> desktopScript [
     return Array.prototype.slice.call(document.querySelectorAll(''.sig-floating-window''));
   }
 
+  function resetWindowFrameScroll() {
+    getManagedWindows().forEach(function (win) {
+      win.scrollLeft = 0;
+      win.scrollTop = 0;
+    });
+  }
+
+  function dedupeGemStoneLogo() {
+    var logos = Array.prototype.slice.call(document.querySelectorAll(''.sig-gemstone-logo''));
+    logos.slice(1).forEach(function (logo) {
+      logo.remove();
+    });
+  }
+
   function desktopMetrics() {
     var desktop = desktopElement();
     var taskbar = taskbarElement();
@@ -1494,7 +1533,9 @@ SigExplorerApplication >> desktopScript [
       var win = document.getElementById(saved.id);
       if (!win) return;
       serverWantsVisible = win.style.display !== ''none'';
-      forceVisible = serverWantsVisible && saved.display === ''none'';
+      forceVisible = serverWantsVisible
+        && saved.display === ''none''
+        && saved.id === window.SIGAutoShowWindow;
       restoredIds[saved.id] = true;
       if (saved.left) win.style.left = saved.left;
       if (saved.top) win.style.top = saved.top;
@@ -1561,8 +1602,10 @@ SigExplorerApplication >> desktopScript [
   }
 
   function extractAutoShowWindow(sourceDocument) {
+    var bodyWindow = sourceDocument.body && sourceDocument.body.getAttribute(''data-sig-auto-show-window'');
     var scripts = sourceDocument.querySelectorAll(''script'');
     var index;
+    if (bodyWindow) return bodyWindow;
     for (index = 0; index < scripts.length; index += 1) {
       var match = (scripts[index].textContent || '''').match(/window\\.SIGAutoShowWindow\\s*=\\s*([''"])(.*?)\\1/);
       if (match) {
@@ -1596,7 +1639,7 @@ SigExplorerApplication >> desktopScript [
   function applyRemoteResponse(htmlText) {
     var sourceDocument = new DOMParser().parseFromString(htmlText, ''text/html'');
     var autoShowWindowId = extractAutoShowWindow(sourceDocument);
-    var selectors = [''.sig-menu-bar'', ''#sig-context-menu'', ''#sig-desktop'', ''#sig-taskbar''];
+    var selectors = [''#sig-context-menu'', ''#sig-desktop'', ''#sig-taskbar''];
     var replaced = false;
 
     if (sourceDocument.title) {
@@ -1967,7 +2010,22 @@ SigExplorerApplication >> desktopScript [
   }
 
   function closeAllWindows() {
-    minimiseAllWindows();
+    var closeForm;
+    var submit;
+    getManagedWindows().forEach(function (win) {
+      win.style.display = ''none'';
+      win.classList.remove(''sig-window-active'');
+      win.classList.remove(''sig-window-collapsed'');
+      win.classList.remove(''sig-window-maximized'');
+    });
+    setActiveWindow(null);
+    syncTaskbarButtons();
+    saveDesktopState();
+    closeForm = document.querySelector(''form[data-sig-close-all-windows]'');
+    submit = closeForm && closeForm.querySelector(''[type="submit"]'');
+    if (submit) {
+      submit.click();
+    }
   }
 
   function showWindow(windowId) {
@@ -2064,7 +2122,15 @@ SigExplorerApplication >> desktopScript [
     if (close) {
       close.addEventListener(''click'', function (event) {
         event.preventDefault();
-        hideWindow(win);
+        var closeForm = win.querySelector(''form[data-sig-window-close]'');
+        if (closeForm) {
+          win.style.display = ''none'';
+          syncTaskbarButtons();
+          var btn = closeForm.querySelector(''[type="submit"]'');
+          if (btn) btn.click();
+        } else {
+          hideWindow(win);
+        }
       });
     }
     if (collapse) {
@@ -2311,6 +2377,8 @@ SigExplorerApplication >> desktopScript [
     installLocalCommands();
     installRemoteInteractions();
     restoreScrollPanes();
+    resetWindowFrameScroll();
+    dedupeGemStoneLogo();
     if (!runtime.resizeListenerInstalled) {
       runtime.resizeListenerInstalled = true;
       window.addEventListener(''resize'', function () {
@@ -2573,6 +2641,7 @@ SigExplorerApplication >> renderAuxiliaryWindowsOn: html [
 			title: (each at: #title)
 			subtitle: (each at: #subtitle)
 			position: (each at: #position)
+			closeCallback: [ auxiliaryWindows remove: each ifAbsent: [] ]
 			with: [ :body | self renderAuxiliaryWindowOn: body window: each ] ]
 ]
 
@@ -2583,6 +2652,7 @@ SigExplorerApplication >> renderContentOn: html [
 		id: 'sig-desktop';
 		class: 'sig-desktop';
 		with: [ :desktop |
+			self renderGemStoneLogoOn: desktop.
 			self
 				renderFloatingWindowOn: desktop
 				id: 'sig-window-explorer'
@@ -2643,6 +2713,79 @@ SigExplorerApplication >> renderContentOn: html [
 			self renderInspectorWindowsOn: desktop.
 			self renderExceptionDebuggerWindowsOn: desktop ].
 	self renderTaskBarOn: html
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> gemStoneLogoPngDataUri [
+	^ 'data:image/png;base64,',
+		'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',
+		'mv8Hd2vGzbb+e84AAAAASUVORK5CYII='
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderGemStoneLogoOn: html [
+	html image
+		id: 'sig-gemstone-logo';
+		class: 'sig-gemstone-logo';
+		attributeAt: 'src' put: self gemStoneLogoPngDataUri;
+		altText: 'GemStone'
 ]
 
 { #category : 'rendering' }
@@ -3150,6 +3293,7 @@ SigExplorerApplication >> renderExceptionDebuggerWindowsOn: html [
 			title: (each at: #title)
 			subtitle: (each at: #subtitle)
 			position: (each at: #position)
+			closeCallback: [ debuggerWindows remove: each ifAbsent: [] ]
 			with: [ :body | self renderExceptionDebuggerOn: body window: each ] ]
 ]
 
@@ -3183,6 +3327,15 @@ SigExplorerApplication >> baseInspectorWindowPosition [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderFloatingWindowOn: html id: anId title: aTitle subtitle: aSubtitle position: aPositionString with: aBlock [
+	self
+		renderFloatingWindowOn: html
+		id: anId title: aTitle subtitle: aSubtitle position: aPositionString
+		closeCallback: nil
+		with: aBlock
+]
+
+{ #category : 'rendering' }
+SigExplorerApplication >> renderFloatingWindowOn: html id: anId title: aTitle subtitle: aSubtitle position: aPositionString closeCallback: aCloseBlock with: aBlock [
 	html div
 		id: anId;
 		class: 'sig-floating-window';
@@ -3215,7 +3368,15 @@ SigExplorerApplication >> renderFloatingWindowOn: html id: anId title: aTitle su
 						attributeAt: 'title' put: 'Close window';
 						attributeAt: 'aria-label' put: 'Close window';
 						with: 'x' ] ].
-				window div class: 'sig-window-body'; with: [ :body | aBlock value: body ] ]
+			aCloseBlock ifNotNil: [
+				window form
+					attributeAt: 'data-sig-window-close' put: 'true';
+					attributeAt: 'data-sig-remote' put: 'true';
+					with: [
+						window submitButton
+							style: 'display:none';
+							callback: aCloseBlock ] ].
+			window div class: 'sig-window-body'; with: [ :body | aBlock value: body ] ]
 ]
 
 { #category : 'rendering' }
@@ -3252,23 +3413,6 @@ SigExplorerApplication >> renderMenuActionOn: html label: aLabel callback: aBloc
 		attributeAt: 'data-sig-remote' put: 'true';
 		callback: aBlock;
 		with: aLabel
-]
-
-{ #category : 'rendering' }
-SigExplorerApplication >> renderMenuBarOn: html [
-	html div class: 'sig-menu-bar'; with: [ :bar |
-		bar div class: 'sig-menu-brand'; with: 'GemStone Desktop'.
-		bar div class: 'sig-menu-strip'; with: [ :strip |
-			self renderMenuDropdownOn: strip label: 'Windows' with: [ :menu |
-				self renderWindowMenuItemsOn: menu ].
-			self renderMenuDropdownOn: strip label: 'Session' with: [ :menu |
-				self renderSessionMenuItemsOn: menu ].
-			self renderMenuDropdownOn: strip label: 'Arrange' with: [ :menu |
-				self renderArrangeMenuItemsOn: menu ] ].
-		bar div class: 'sig-menu-status'; with: [
-			bar span class: 'sig-session-label'; with: self gateway connectionSummary.
-			statusMessage ifNotNil: [
-				bar span class: 'sig-status-badge'; with: statusMessage ] ] ]
 ]
 
 { #category : 'rendering' }
@@ -3349,35 +3493,42 @@ SigExplorerApplication >> renderInspectorOn: html [
 ]
 
 { #category : 'rendering' }
-SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitle: rowsTitle rows: rows text: aString [
+SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel className: aClassName displayString: aDisplayString rowsTitle: rowsTitle rows: rows text: aString [
+	(aClassName notNil and: [ aClassName notEmpty ]) ifTrue: [
+		html div class: 'insp-header'; with: [
+			html span class: 'insp-class'; with: aClassName.
+			(aDisplayString notNil and: [ aDisplayString notEmpty and: [ aDisplayString ~= aClassName ] ]) ifTrue: [
+				html span class: 'insp-display'; with: aDisplayString ] ] ].
 	(rows notNil and: [ rows isEmpty not ])
 		ifTrue: [
 			html div class: 'exp-wrap inspector-wrap'; with: [
-				html div class: 'exp-section inspector-section inspector-summary'; with: [
+				html div class: 'exp-section inspector-section inspector-keys'; with: [
 					html div class: 'exp-pane-title'; with: rowsTitle.
 					html div class: 'sig-scroll-pane exp-scroll inspector-scroll'; with: [
-						html table class: 'sig-table exp-table'; with: [
-							html tableHead: [
-								html tableRow: [
-									html tableHeading: 'Key'.
-									html tableHeading: 'Value' ] ].
-							html tableBody: [
-								rows do: [ :each |
-									html tableRow: [
-										html tableData: (each at: #key ifAbsent: [ '' ]).
-										html tableData: [
-											(each includesKey: #object)
-												ifTrue: [
-													html anchor
-														class: 'inspector-value-link';
-														attributeAt: 'data-sig-remote' put: 'true';
-														callback: [ self inspectStructuredInspectorRow: each ];
-														with: (each at: #value ifAbsent: [ '' ]) ]
-												ifFalse: [ html text: (each at: #value ifAbsent: [ '' ]) ] ] ] ] ] ] ] ].
-				html div class: 'exp-section inspector-section inspector-print'; with: [
-					html div class: 'exp-pane-title'; with: 'PrintString'.
+						html unorderedList class: 'inspector-key-list'; with: [
+							rows do: [ :each |
+								html listItem
+									class: 'inspector-key-item';
+									with: (each at: #key ifAbsent: [ '' ]) ] ] ] ].
+				html div class: 'exp-section inspector-section inspector-values'; with: [
+					html div class: 'exp-pane-title'; with: 'Values'.
 					html div class: 'sig-scroll-pane exp-scroll inspector-scroll'; with: [
-						html preformatted class: 'sig-pre'; with: aString ] ] ] ]
+						html div class: 'inspector-value-list'; with: [
+							rows do: [ :each |
+								html div class: 'inspector-value-row'; with: [
+									html div class: 'inspector-value-key'; with: (each at: #key ifAbsent: [ '' ]).
+									html div class: 'inspector-value-cell'; with: [
+										(each includesKey: #object)
+											ifTrue: [
+												html anchor
+													class: 'inspector-value-link';
+													attributeAt: 'data-sig-remote' put: 'true';
+													callback: [ self inspectStructuredInspectorRow: each ];
+													with: (each at: #value ifAbsent: [ '' ]) ]
+											ifFalse: [ html text: (each at: #value ifAbsent: [ '' ]) ] ] ] ].
+							html div class: 'inspector-print-inline'; with: [
+								html div class: 'exp-pane-title'; with: 'PrintString'.
+								html preformatted class: 'sig-pre'; with: aString ] ] ] ] ] ]
 		ifFalse: [
 			html div class: 'sig-source-window'; with: [
 				html heading level3; with: aLabel.
@@ -3386,10 +3537,24 @@ SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitl
 ]
 
 { #category : 'rendering' }
+SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitle: rowsTitle rows: rows text: aString [
+	self
+		renderInspectorContentsOn: html
+		label: aLabel
+		className: ''
+		displayString: ''
+		rowsTitle: rowsTitle
+		rows: rows
+		text: aString
+]
+
+{ #category : 'rendering' }
 SigExplorerApplication >> renderInspectorWindowOn: html window: aWindow [
 	self
 		renderInspectorContentsOn: html
 		label: aWindow label
+		className: aWindow className
+		displayString: aWindow displayString
 		rowsTitle: aWindow rowsTitle
 		rows: aWindow rows
 		text: aWindow text
@@ -3404,6 +3569,7 @@ SigExplorerApplication >> renderInspectorWindowsOn: html [
 			title: (each at: #title)
 			subtitle: (each at: #subtitle)
 			position: (each at: #position)
+			closeCallback: [ inspectorWindows remove: each ifAbsent: [] ]
 			with: [ :body | self renderInspectorWindowOn: body window: each ] ]
 ]
 
@@ -3451,7 +3617,6 @@ SigExplorerApplication >> renderTaskBarOn: html [
 		id: 'sig-taskbar';
 		class: 'sig-taskbar';
 		with: [
-			html div class: 'sig-taskbar-brand'; with: 'GemStone Desktop'.
 			html div class: 'sig-taskbar-strip sig-taskbar-strip-secondary sig-taskbar-strip-menus'; with: [ :strip |
 				self renderMenuDropdownOn: strip label: 'Windows' with: [ :menu |
 					self renderWindowMenuItemsOn: menu ].
@@ -3489,6 +3654,14 @@ SigExplorerApplication >> renderTaskBarOn: html [
 						target: (each at: #id) ].
 				self renderTaskBarWindowCommandOn: html label: 'Session' target: 'sig-window-session'.
 				self renderTaskBarWindowCommandOn: html label: 'Transcript' target: 'sig-window-transcript' ].
+			html form
+				style: 'display:none';
+				attributeAt: 'data-sig-close-all-windows' put: 'true';
+				attributeAt: 'data-sig-remote' put: 'true';
+				with: [
+					html submitButton
+						callback: [ self closeAllTransientWindows ];
+						with: 'Close All Windows' ].
 			html div class: 'sig-taskbar-status'; with: [
 				html span class: 'sig-taskbar-session'; with: self gateway connectionSummary.
 				statusMessage ifNotNil: [
@@ -3615,14 +3788,6 @@ SigExplorerApplication >> renderWorkspaceOn: html [
 { #category : 'rendering' }
 SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 	html div class: 'sig-workspace-shell'; with: [
-		html div class: 'ws-history sig-scroll-pane'; with: [
-			html div class: 'ws-entry'; with: [
-				html div class: 'ws-code'; with: [
-					html preformatted class: 'sig-pre'; with: (self workspaceSourceTextForWindow: aWindow) ].
-				html div
-					class: (self workspaceHasCapturedFailure ifTrue: [ 'ws-result error' ] ifFalse: [ 'ws-result' ]);
-					with: [
-						html span class: 'ws-result-text'; with: (self workspaceResultTextForWindow: aWindow) ] ] ].
 		html form
 			class: 'sig-workspace-form';
 			attributeAt: 'data-sig-remote' put: 'true';
@@ -3632,7 +3797,7 @@ SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 						class: 'ws-code-area';
 						attributeAt: 'spellcheck' put: 'false';
 						attributeAt: 'wrap' put: 'off';
-						attributeAt: 'placeholder' put: 'Smalltalk expression... (Ctrl+Enter)';
+						attributeAt: 'placeholder' put: 'Smalltalk expression...';
 						rows: 8;
 						callback: [ :value | self workspaceSourceText: value forWindow: aWindow ];
 						value: (self workspaceSourceTextForWindow: aWindow).
@@ -3664,8 +3829,7 @@ SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 							class: 'btn-ghost';
 							attributeAt: 'data-workspace-action' put: 'clear';
 							callback: [ self clearWorkspaceOutputForWindow: aWindow ];
-							with: 'Clear'.
-						html span class: 'ws-hint'; with: 'Ctrl+Enter' ] ].
+							with: 'Clear' ] ].
 				html div class: 'txbar'; with: [
 					html span: 'Transaction:'.
 					html submitButton
@@ -4188,38 +4352,8 @@ a:hover {
 	text-decoration: underline;
 }
 
-.sig-menu-bar {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	z-index: 2000;
-	display: grid;
-	grid-template-columns: auto 1fr auto;
-	gap: 0.7rem;
-	align-items: center;
-		padding: 0.24rem 0.45rem;
-		background: #d4d4d4;
-		border-bottom: 1px solid #b0b0b0;
-	backdrop-filter: none;
-	box-shadow: none;
-	color: var(--sig-text);
-}
 
-.sig-menu-brand {
-	font-size: 0.72rem;
-	font-weight: 600;
-	letter-spacing: 0;
-	color: #1c1c1c;
-	text-transform: none;
-}
 
-.sig-menu-strip {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.4rem;
-}
 
 .sig-menu {
 	position: relative;
@@ -4278,27 +4412,8 @@ a:hover {
 	text-decoration: none;
 }
 
-.sig-menu-status {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: 0.15rem;
-}
 
-.sig-session-label {
-	font-size: 0.76rem;
-	color: var(--sig-muted);
-}
 
-.sig-status-badge {
-	max-width: 22rem;
-	padding: 0.16rem 0.5rem;
-	border-radius: 0;
-	background: #e8e8e8;
-	color: #1c1c1c;
-	font-size: 0.76rem;
-	border: 1px solid #b0b0b0;
-}
 
 .sig-taskbar {
 	position: fixed;
@@ -4317,13 +4432,6 @@ a:hover {
 	box-shadow: none;
 }
 
-.sig-taskbar-brand {
-	font-size: 0.66rem;
-	font-weight: 600;
-	color: #1c1c1c;
-	text-transform: none;
-	letter-spacing: 0;
-}
 
 .sig-taskbar-strip {
 	display: flex;
@@ -4445,6 +4553,20 @@ a:hover {
 	overflow: auto;
 }
 
+.sig-gemstone-logo {
+	position: fixed;
+	right: 1rem;
+	bottom: 7rem;
+	width: 111px;
+	height: 128px;
+	z-index: 1;
+	pointer-events: none;
+	opacity: 1;
+	background: #e8e8e8;
+	display: block;
+	object-fit: contain;
+}
+
 .sig-floating-window {
 	position: absolute;
 	min-width: 22rem;
@@ -4457,8 +4579,7 @@ a:hover {
 		border-radius: 0;
 		box-shadow: none;
 	backdrop-filter: none;
-	overflow-x: auto;
-	overflow-y: scroll;
+	overflow: hidden;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
 	scrollbar-color: #a0a0a0 #e0e0e0;
@@ -4483,12 +4604,16 @@ a:hover {
 	justify-content: flex-start;
 		gap: 0.32rem;
 		padding: 0 0.42rem;
-		height: 24px;
+		height: 20px;
 		background: #d4d4d4;
 		border-bottom: 1px solid #b0b0b0;
 	box-shadow: none;
 	color: var(--sig-text);
 	cursor: grab;
+	flex: 0 0 auto;
+	position: sticky;
+	top: 0;
+	z-index: 2;
 }
 
 .sig-window-headings h2 {
@@ -4524,7 +4649,7 @@ a:hover {
 	align-items: center;
 	justify-content: center;
 		padding: 0.1rem 0.38rem;
-		height: 18px;
+		height: 16px;
 	border-radius: 0;
 		border: 1px solid #b0b0b0;
 	background: #d4d4d4;
@@ -4588,8 +4713,8 @@ a:hover {
 }
 
 .sig-session-panel {
-		background: #f5f5f5;
-		border: 1px solid #b0b0b0;
+		background: transparent;
+		border: none;
 		border-radius: 0;
 		padding: 0.42rem 0.48rem;
 	box-shadow: none;
@@ -4624,8 +4749,8 @@ a:hover {
 .sig-source-window,
 .sig-debugger-panel {
 		position: relative;
-		background: #f5f5f5;
-		border: 1px solid #b0b0b0;
+		background: transparent;
+		border: none;
 		border-radius: 0;
 		padding: 0.42rem 0.48rem;
 		box-shadow: none;
@@ -4680,10 +4805,10 @@ a:hover {
 
 .inspector-wrap {
 		display: grid;
-		grid-template-rows: minmax(0, 1.9fr) minmax(6.5rem, 0.45fr);
-		flex: 1 1 auto;
+		grid-template-columns: minmax(10rem, 0.46fr) minmax(0, 1fr);
+		grid-template-rows: minmax(0, 1fr);
+		flex: 1 1 0;
 		min-height: 0;
-		height: 100%;
 		overflow: hidden;
 }
 
@@ -4716,8 +4841,8 @@ a:hover {
 .exp-toolbar,
 .exp-pane {
 		position: relative;
-		background: #f5f5f5;
-		border: 1px solid #b0b0b0;
+		background: transparent;
+		border: none;
 		border-radius: 0;
 		box-shadow: none;
 }
@@ -4805,8 +4930,8 @@ a:hover {
 		flex-direction: column;
 		gap: 0.35rem;
 		padding: 0.35rem;
-		background: #f5f5f5;
-		border: 1px solid #b0b0b0;
+		background: transparent;
+		border: none;
 		border-radius: 0;
 }
 
@@ -4825,6 +4950,63 @@ a:hover {
 
 .inspector-print {
 		flex: 1 1 auto;
+}
+
+.inspector-key-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.16rem;
+}
+
+.inspector-key-item {
+	padding: 0.24rem 0.34rem;
+	border-bottom: 1px solid #e0e0e0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 0.78rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.inspector-value-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.inspector-value-row {
+	display: grid;
+	grid-template-columns: minmax(8rem, 0.32fr) minmax(0, 1fr);
+	gap: 0.5rem;
+	align-items: start;
+	padding: 0.3rem 0.36rem;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.inspector-value-key {
+	color: #555555;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 0.76rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.inspector-value-cell {
+	min-width: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 0.78rem;
+}
+
+.inspector-print-inline {
+	margin-top: 0.45rem;
+	padding: 0.42rem 0.36rem;
+	border-top: 1px solid #d0d0d0;
 }
 
 .exp-pane {
@@ -4960,6 +5142,29 @@ a:hover {
 
 .exp-table-value {
 		color: #1c1c1c;
+}
+
+.insp-header {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	padding: 0.3rem 0.42rem;
+	border-bottom: 1px solid #d0d0d0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 0.78rem;
+	flex-shrink: 0;
+}
+
+.insp-class {
+	font-weight: 700;
+	color: #1c1c1c;
+}
+
+.insp-display {
+	color: #555555;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .inspector-value-link {
@@ -5702,48 +5907,13 @@ button.btn-tx:hover,
 	gap: 0;
 }
 
-.ws-history {
-	flex: 1;
-	min-height: 0;
-	overflow-y: auto;
-	padding: 0.38rem 0.52rem;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-	font-size: 0.78rem;
-	color: #1c1c1c;
-	background: #ffffff;
-	border-bottom: 1px solid #d0d0d0;
-}
 
-.ws-entry {
-	margin-bottom: 0.34rem;
-}
 
-.ws-code {
-	color: #1c1c1c;
-	white-space: pre-wrap;
-	word-break: break-word;
-}
 
-.ws-result {
-	margin-top: 0.24rem;
-	padding: 0.2rem 0.42rem;
-	border-radius: 0;
-	background: #e8f5e8;
-	color: #1a5c1a;
-}
 
-.ws-result.error {
-	background: #fde8e8;
-	color: #aa0000;
-}
 
-.ws-result-text {
-	white-space: pre-wrap;
-	word-break: break-word;
-}
 
 .ws-input-row {
-	border-top: 1px solid #d0d0d0;
 	display: flex;
 	flex-direction: column;
 	flex-shrink: 0;
@@ -5772,11 +5942,6 @@ button.btn-tx:hover,
 	flex-wrap: wrap;
 }
 
-.ws-hint {
-	margin-left: auto;
-	font-size: 0.68rem;
-	color: #777777;
-}
 
 .ws-context-menu {
 	display: none;
@@ -6497,6 +6662,7 @@ SigExplorerApplication >> updateRoot: anHtmlRoot [
 	anHtmlRoot addScript: self desktopScript.
 	windowId := self consumePendingWindowIdToShow.
 	windowId ifNotNil: [
+		anHtmlRoot bodyAttributes at: 'data-sig-auto-show-window' put: windowId.
 		anHtmlRoot addScript: 'window.SIGAutoShowWindow = ', windowId printString, ';' ]
 ]
 
@@ -6560,19 +6726,23 @@ SigExplorerApplication >> workspacePrintIt [
 
 { #category : 'actions' }
 SigExplorerApplication >> workspacePrintItForWindow: aWindow [
-	| hadFailure |
-	self
-		workspaceResultText: (self gateway workspaceDoIt: (self workspaceSourceTextForWindow: aWindow))
-		forWindow: aWindow.
+	| hadFailure result |
+	result := self gateway workspaceDoIt: (self workspaceSourceTextForWindow: aWindow).
+	self workspaceResultText: result forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
 		ifTrue: [
 			self requestExceptionDebuggerForLastError.
 			self setStatusMessage: 'Workspace print it failed' ]
-		ifFalse: [ self setStatusMessage: 'Workspace print it completed' ].
+		ifFalse: [
+			self
+				workspaceSourceText: (self workspaceSourceTextForWindow: aWindow), ' "', (result copyReplaceAll: '"' with: '""'), '"'
+				forWindow: aWindow.
+			self workspaceResultText: '' forWindow: aWindow.
+			self setStatusMessage: 'Workspace print it completed' ].
 	self
 		addTranscriptLine: 'Workspace print it: ',
-			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))
+			(self transcriptPreviewOf: result)
 ]
 
 { #category : 'actions' }
@@ -6582,9 +6752,12 @@ SigExplorerApplication >> workspaceInspectIt [
 
 { #category : 'actions' }
 SigExplorerApplication >> workspaceInspectItForWindow: aWindow [
-	| hadFailure |
+	| hadFailure snapshot window |
+	snapshot := self gateway workspaceInspectionSnapshotFor: (self workspaceSourceTextForWindow: aWindow).
 	self
-		workspaceResultText: (self gateway workspaceInspectIt: (self workspaceSourceTextForWindow: aWindow))
+		workspaceResultText: (snapshot
+			ifNil: [ self gateway workspaceErrorText ]
+			ifNotNil: [ snapshot at: #printString ifAbsent: [ '' ] ])
 		forWindow: aWindow.
 	hadFailure := self workspaceHasCapturedFailure.
 	hadFailure
@@ -6593,8 +6766,11 @@ SigExplorerApplication >> workspaceInspectItForWindow: aWindow [
 			self setStatusMessage: 'Workspace inspect failed' ]
 		ifFalse: [ self setStatusMessage: 'Workspace inspect completed' ].
 	hadFailure ifFalse: [
-		self showInspectorText: (self workspaceResultTextForWindow: aWindow) label: 'Workspace result'.
-		self requestWindowShow: 'sig-window-inspector' ].
+		window := self
+			newInspectorWindowForSnapshot: snapshot
+			label: 'Workspace result'
+			title: 'Workspace result'.
+		self requestWindowShow: window windowId ].
 	self
 		addTranscriptLine: 'Workspace inspect output: ',
 			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))

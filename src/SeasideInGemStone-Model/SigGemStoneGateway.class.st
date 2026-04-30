@@ -335,12 +335,12 @@ SigGemStoneGateway >> inspectionRowKey: aKey value: aValue [
 
 { #category : 'querying' }
 SigGemStoneGateway >> inspectionRowsTitleFor: anObject [
-	((anObject isKindOf: Dictionary)
-		or: [ (anObject isKindOf: Collection) and: [ (anObject isKindOf: String) not ] ])
-		ifTrue: [ ^ 'Index / Values' ].
-	(anObject isKindOf: Association) ifTrue: [ ^ 'Key / Values' ].
+	(anObject isKindOf: Dictionary) ifTrue: [ ^ 'Keys' ].
+	((anObject isKindOf: Collection) and: [ (anObject isKindOf: String) not ])
+		ifTrue: [ ^ 'Indexes' ].
+	(anObject isKindOf: Association) ifTrue: [ ^ 'Association' ].
 	(anObject isBehavior) ifTrue: [ ^ 'Class Details' ].
-	^ 'Details'
+	^ 'Instance Variables'
 ]
 
 { #category : 'querying' }
@@ -349,6 +349,8 @@ SigGemStoneGateway >> inspectionSnapshotFor: anObject [
 		at: #rowsTitle put: (self inspectionRowsTitleFor: anObject);
 		at: #rows put: (self inspectionRowsFor: anObject);
 		at: #printString put: (self longDisplayStringFor: anObject);
+		at: #className put: ([ anObject class name asString ] on: Error do: [ '' ]);
+		at: #displayString put: (self displayStringFor: anObject);
 		yourself
 ]
 
@@ -477,6 +479,7 @@ SigGemStoneGateway >> debuggerSnapshotForSessionId: aSessionId [
 	| session |
 	session := self debugSessionAt: aSessionId ifAbsent: [ ^ self missingDebuggerSnapshot ].
 	self refreshDebugSession: session.
+	self normalizeInitialWorkspaceDebugFrameForDisplayIfNeeded: session.
 	self refreshLastErrorStateFromDebugSession: session.
 	^ self snapshotForDebugSession: session
 ]
@@ -491,6 +494,20 @@ SigGemStoneGateway >> debugWorkspaceSelectorRegistry [
 		registry := Dictionary new.
 		SessionTemps current
 			at: #SigGemStoneGateway_workspaceSelectors
+			put: registry ].
+	^ registry
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> debugInitialDisplaySessionRegistry [
+	| registry |
+	registry := SessionTemps current
+		at: #SigGemStoneGateway_initialDisplaySessions
+		ifAbsent: [ nil ].
+	registry ifNil: [
+		registry := Set new.
+		SessionTemps current
+			at: #SigGemStoneGateway_initialDisplaySessions
 			put: registry ].
 	^ registry
 ]
@@ -655,6 +672,8 @@ SigGemStoneGateway >> published [
 SigGemStoneGateway >> performDebugAction: anActionSymbol forSessionId: aSessionId atLevel: aLevel [
 	| session |
 	session := self debugSessionAt: aSessionId ifAbsent: [ ^ self missingDebuggerSnapshot ].
+	anActionSymbol = #refresh
+		ifFalse: [ self unmarkInitialWorkspaceDebugSessionForDisplay: session ].
 	self performDebugAction: anActionSymbol forSession: session atLevel: aLevel.
 	self refreshDebugSession: session.
 	self advanceWorkspaceDebugPreambleAfterAction: anActionSymbol session: session.
@@ -837,6 +856,8 @@ SigGemStoneGateway >> restartDebugProcess: aProcess atLevel: aLevel session: aSe
 		restartDebugFrameLevelForSession: aSession
 		selectedLevel: aLevel.
 	[
+		(self restartNeedsWorkspaceReplayForSession: aSession process: aProcess atLevel: restartLevel)
+			ifTrue: [ ^ self restartWorkspaceDebugSession: aSession ].
 		((aProcess respondsTo: #trimStackToLevel:)
 			or: [ aProcess respondsTo: #_trimStackToLevel: ])
 			ifFalse: [ self error: 'Restart is unavailable for this GemStone process.' ].
@@ -846,22 +867,36 @@ SigGemStoneGateway >> restartDebugProcess: aProcess atLevel: aLevel session: aSe
 		[self rewindDebugProcessToStepOneIfNeeded: aProcess atLevel: restartLevel]
 			on: Error
 			do: [ ].
-		(self restartNeedsWorkspaceReplayForSession: aSession process: aProcess)
-			ifTrue: [ ^ self restartWorkspaceDebugSession: aSession ].
 		aSession markSuspended ]
-		on: Error
-		do: [ :error |
+	on: Error
+	do: [ :error |
 			aSession markTerminatedWithMessage: (self errorTextFor: error) ]
 ]
 
 { #category : 'private' }
 SigGemStoneGateway >> restartNeedsWorkspaceReplayForSession: aSession process: aProcess [
-	| quickStepPoint sourceString |
+	^ self restartNeedsWorkspaceReplayForSession: aSession process: aProcess atLevel: 1
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> restartNeedsWorkspaceReplayForSession: aSession process: aProcess atLevel: aLevel [
+	| frame frames level quickStepPoint sourceString |
 	aSession ifNil: [ ^ false ].
 	aProcess ifNil: [ ^ false ].
 	sourceString := aSession sourceString.
 	sourceString ifNil: [ ^ false ].
-	quickStepPoint := self debugProcessQuickStepPointFor: aProcess atLevel: 1.
+	level := aLevel ifNil: [ 1 ].
+	frames := aSession lastFrames ifNil: [ #() ].
+	frame := frames
+		detect: [ :each | (each at: #level ifAbsent: [ nil ]) = level ]
+		ifNone: [ self workspaceExecutedFrameInSession: aSession ].
+	quickStepPoint := frame
+		ifNil: [ nil ]
+		ifNotNil: [ frame at: #quickStepPoint ifAbsent: [ nil ] ].
+	quickStepPoint ifNotNil: [ ^ quickStepPoint > 1 ].
+	quickStepPoint := self debugProcessQuickStepPointFor: aProcess atLevel: level.
+	quickStepPoint ifNil: [
+		quickStepPoint := self debugProcessQuickStepPointFor: aProcess atLevel: 1 ].
 	^ quickStepPoint notNil and: [ quickStepPoint > 1 ]
 ]
 
@@ -926,6 +961,7 @@ SigGemStoneGateway >> restartWorkspaceDebugSession: aSession [
 						[self rewindDebugProcessToStepOneIfNeeded: process atLevel: restartLevel]
 							on: Error
 							do: [ ].
+						session errorText: 'Workspace debug ready.'.
 						session markSuspended.
 						self refreshDebugSession: session ] ].
 			self refreshLastErrorStateFromDebugSession: session ] ]
@@ -962,7 +998,28 @@ SigGemStoneGateway >> prepareWorkspaceDebugSessionForInitialStep: aSession [
 					aSession markTerminatedWithMessage: (self errorTextFor: error).
 					^ self ].
 			self refreshDebugSession: aSession.
-			attempts := attempts + 1 ]
+			attempts := attempts + 1 ].
+	self normalizeInitialWorkspaceDebugFrameInSession: aSession
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> normalizeInitialWorkspaceDebugFrameInSession: aSession [
+	| frame quickStepPoint |
+	frame := self workspaceExecutedFrameInSession: aSession.
+	frame ifNil: [ ^ self ].
+	(frame at: #lineNumber ifAbsent: [ nil ]) = 1 ifFalse: [ ^ self ].
+	quickStepPoint := frame at: #quickStepPoint ifAbsent: [ nil ].
+	(quickStepPoint isNil or: [ quickStepPoint <= 1 ]) ifTrue: [ ^ self ].
+	frame
+		at: #quickStepPoint put: 1;
+		at: #lineNumber put: 1;
+		at: #text put: (self stackFrameTextForRecord: frame)
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> normalizeInitialWorkspaceDebugFrameForDisplayIfNeeded: aSession [
+	(self shouldNormalizeInitialWorkspaceDebugSessionForDisplay: aSession)
+		ifTrue: [ self normalizeInitialWorkspaceDebugFrameInSession: aSession ]
 ]
 
 { #category : 'private' }
@@ -1786,6 +1843,33 @@ SigGemStoneGateway >> storeWorkspaceDebugSelector: aSelector inSession: aSession
 ]
 
 { #category : 'private' }
+SigGemStoneGateway >> markInitialWorkspaceDebugSessionForDisplay: aSession [
+	| sessionId |
+	aSession ifNil: [ ^ self ].
+	sessionId := aSession sessionId.
+	sessionId ifNotNil: [
+		self debugInitialDisplaySessionRegistry add: sessionId ]
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> shouldNormalizeInitialWorkspaceDebugSessionForDisplay: aSession [
+	| sessionId |
+	aSession ifNil: [ ^ false ].
+	sessionId := aSession sessionId.
+	sessionId ifNil: [ ^ false ].
+	^ self debugInitialDisplaySessionRegistry includes: sessionId
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> unmarkInitialWorkspaceDebugSessionForDisplay: aSession [
+	| sessionId |
+	aSession ifNil: [ ^ self ].
+	sessionId := aSession sessionId.
+	sessionId ifNil: [ ^ self ].
+	self debugInitialDisplaySessionRegistry remove: sessionId ifAbsent: [ ]
+]
+
+{ #category : 'private' }
 SigGemStoneGateway >> stepDebugProcess: aProcess withSelectorChain: selectorChain level: aLevel errorMessage: anErrorMessage [
 	selectorChain do: [ :selector |
 		(aProcess respondsTo: selector) ifTrue: [
@@ -1857,13 +1941,7 @@ SigGemStoneGateway >> waitForDebugProcessToTerminate: aProcess [
 
 { #category : 'private' }
 SigGemStoneGateway >> waitForDebugProcessToStopAfterResume: aProcess [
-	| deadline |
-	deadline := Time millisecondClockValue + self debugProcessResumeTimeoutMilliseconds.
-	[
-		(([ aProcess isTerminated ] on: Error do: [ true ])
-			or: [ ([ aProcess isSuspended ] on: Error do: [ false ]) not ])
-			or: [ Time millisecondClockValue >= deadline ] ]
-		whileFalse: [ (Delay forMilliseconds: 5) wait ].
+	(Delay forMilliseconds: 5) wait.
 	^ self waitForDebugProcessToStop: aProcess
 ]
 
@@ -1914,6 +1992,22 @@ SigGemStoneGateway >> workspaceErrorText [
 { #category : 'private' }
 SigGemStoneGateway >> workspaceDebugHookSourceLine [
 	^ 'self sigSuspendForDebug.'
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> normalizeLineEndingsToCr: aString [
+	| cr lf result |
+	aString ifNil: [ ^ '' ].
+	cr := Character cr.
+	lf := Character lf.
+	result := WriteStream on: String new.
+	1 to: aString size do: [ :i |
+		| ch |
+		ch := aString at: i.
+		ch = lf ifTrue: [
+			((i > 1) and: [ (aString at: i - 1) = cr ]) ifFalse: [ result nextPut: cr ] ]
+		ifFalse: [ result nextPut: ch ] ].
+	^ result contents
 ]
 
 { #category : 'private' }
@@ -2013,6 +2107,7 @@ SigGemStoneGateway >> workspaceDebugMethodSourceFor: aSelector source: sourceStr
 	| body stream |
 	body := sourceString ifNil: [ '' ].
 	body isEmpty ifTrue: [ body := '^ nil' ].
+	body := self normalizeLineEndingsToCr: body.
 	stream := WriteStream on: String new.
 	stream
 		nextPutAll: aSelector asString;
@@ -2033,6 +2128,14 @@ SigGemStoneGateway >> workspaceInspectIt: sourceString [
 	outcome := self workspaceOutcomeFor: sourceString.
 	(outcome at: #success ifAbsent: [ false ]) ifFalse: [ ^ self workspaceErrorText ].
 	^ self inspectionStringFor: (outcome at: #value)
+]
+
+{ #category : 'actions' }
+SigGemStoneGateway >> workspaceInspectionSnapshotFor: sourceString [
+	| outcome |
+	outcome := self workspaceOutcomeFor: sourceString.
+	(outcome at: #success ifAbsent: [ false ]) ifFalse: [ ^ nil ].
+	^ self inspectionSnapshotFor: (outcome at: #value)
 ]
 
 { #category : 'private' }
@@ -2105,6 +2208,7 @@ SigGemStoneGateway >> workspaceDebugOutcomeFor: sourceString [
 	self refreshDebugSession: session.
 	session isSuspended ifTrue: [
 		self prepareWorkspaceDebugSessionForInitialStep: session.
+		self markInitialWorkspaceDebugSessionForDisplay: session.
 		self refreshLastErrorStateFromDebugSession: session.
 		outcome
 			at: #success put: true;

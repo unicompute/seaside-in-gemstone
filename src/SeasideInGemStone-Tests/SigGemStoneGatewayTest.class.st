@@ -591,6 +591,27 @@ SigGemStoneGatewayTest >> testWorkspaceDebugItStartsAtUserSourceWithoutRestart [
 ]
 
 { #category : 'tests' }
+SigGemStoneGatewayTest >> testWorkspaceDebugItStartsAtFirstDisplayStep [
+	| executedFrame snapshot |
+	[
+		gateway workspaceDebugIt: '1 + 2.', String lf, '3 + 4'.
+		snapshot := gateway debuggerSnapshotForSessionId: gateway lastDebugSessionId.
+		executedFrame := (snapshot at: #frames)
+			detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+			ifNone: [ nil ].
+
+		self assert: executedFrame notNil.
+		self assert: (executedFrame at: #lineNumber ifAbsent: [ nil ]) equals: 1.
+		self assert: (executedFrame at: #quickStepPoint ifAbsent: [ nil ]) equals: 1 ]
+		ensure: [
+			gateway lastDebugSessionId ifNotNil: [ :sessionId |
+				gateway
+					performDebugAction: #terminate
+					forSessionId: sessionId
+					atLevel: 1 ] ]
+]
+
+{ #category : 'tests' }
 SigGemStoneGatewayTest >> testWorkspaceDebugItDoesNotEvaluateFailingCodeBeforeFirstStep [
 	| errorText executedFrame result snapshot |
 	[
@@ -661,6 +682,49 @@ SigGemStoneGatewayTest >> testWorkspaceDebugItStepsThroughMultilineSourceBeforeE
 ]
 
 { #category : 'tests' }
+SigGemStoneGatewayTest >> testWorkspaceDebugItRestartAfterStepsRewindsExecutedCodeFrame [
+	| executedFrame sessionId snapshot source |
+	source := '1 + 2.', String lf, String lf, '1+1. 4*4. 6-1.', String lf, String lf, '1/0'.
+	[
+		gateway workspaceDebugIt: source.
+		sessionId := gateway lastDebugSessionId.
+		snapshot := gateway debuggerSnapshotForSessionId: sessionId.
+		executedFrame := (snapshot at: #frames)
+			detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+			ifNone: [ nil ].
+		self assert: executedFrame notNil.
+		1 to: 3 do: [ :index |
+			snapshot := gateway
+				performDebugAction: #step
+				forSessionId: sessionId
+				atLevel: (executedFrame at: #level ifAbsent: [ 1 ]).
+			executedFrame := (snapshot at: #frames)
+				detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+				ifNone: [ nil ].
+			self assert: executedFrame notNil ].
+
+		snapshot := gateway
+			performDebugAction: #restart
+			forSessionId: sessionId
+			atLevel: (executedFrame at: #level ifAbsent: [ 1 ]).
+		executedFrame := (snapshot at: #frames)
+			detect: [ :each | gateway stackFrameIsWorkspaceExecutedCode: each ]
+			ifNone: [ nil ].
+		self assert: executedFrame notNil.
+		self assert: (snapshot at: #sessionStatusText) equals: 'Debug process suspended.'.
+		self assert: (snapshot at: #errorText) equals: 'Workspace debug ready.'.
+		self assert: (snapshot at: #canRestart).
+		self assert: (executedFrame at: #quickStepPoint ifAbsent: [ nil ]) equals: 1.
+		self assert: (executedFrame at: #lineNumber ifAbsent: [ nil ]) equals: 1 ]
+		ensure: [
+			sessionId ifNotNil: [
+				gateway
+					performDebugAction: #terminate
+					forSessionId: sessionId
+					atLevel: 1 ] ]
+]
+
+{ #category : 'tests' }
 SigGemStoneGatewayTest >> testWorkspaceDebugMethodSourceKeepsHookOutsideUserBlock [
 	| source |
 	source := gateway
@@ -674,6 +738,18 @@ SigGemStoneGatewayTest >> testWorkspaceDebugMethodSourceKeepsHookOutsideUserBloc
 		'1 + 2.', String lf,
 		'3 + 4', String lf,
 		'] value'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testWaitForDebugProcessToStopAfterResumeDoesNotWaitForResumeTimeout [
+	| elapsed process start |
+	process := SigDebugProcessMock new.
+	start := Time millisecondClockValue.
+
+	gateway waitForDebugProcessToStopAfterResume: process.
+
+	elapsed := Time millisecondClockValue - start.
+	self assert: elapsed < 500
 ]
 
 { #category : 'tests' }
@@ -776,6 +852,16 @@ SigGemStoneGatewayTest >> testWorkspaceInspectIncludesClassName [
 ]
 
 { #category : 'tests' }
+SigGemStoneGatewayTest >> testWorkspaceInspectionSnapshotIncludesStructuredRows [
+	| snapshot |
+	snapshot := gateway workspaceInspectionSnapshotFor: '1 + 2'.
+	self assert: (snapshot at: #className) equals: 'SmallInteger'.
+	self assert: (snapshot at: #rowsTitle) equals: 'Instance Variables'.
+	self assert: (snapshot at: #rows) isEmpty not.
+	self assert: ((snapshot at: #printString) includesString: '3')
+]
+
+{ #category : 'tests' }
 SigGemStoneGatewayTest >> testInspectionRowsCarryInspectableObjects [
 	| rows |
 	rows := gateway inspectionRowsFor: #(1 2 3).
@@ -817,4 +903,50 @@ SigGemStoneGatewayTest >> testSigWorkspaceEvaluatorHandlesNilSource [
 { #category : 'tests' }
 SigGemStoneGatewayTest >> testWorkspaceValueForDelegatesToSigWorkspaceEvaluator [
 	self assert: (gateway workspaceValueFor: '3 * 4') equals: 12
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testNormalizeLineEndingsToCrConvertsLf [
+	self assert: (gateway normalizeLineEndingsToCr: 'a', String lf, 'b')
+		equals: 'a', String cr, 'b'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testNormalizeLineEndingsToCrConvertsCrLf [
+	self assert: (gateway normalizeLineEndingsToCr: 'a', String cr, String lf, 'b')
+		equals: 'a', String cr, 'b'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testNormalizeLineEndingsToCrLeavesCrAlone [
+	self assert: (gateway normalizeLineEndingsToCr: 'a', String cr, 'b')
+		equals: 'a', String cr, 'b'
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testWorkspaceDebugMethodSourceNormalizesLineEndings [
+	| source |
+	source := gateway
+		workspaceDebugMethodSourceFor: #sigWorkspaceABC123
+		source: '1 + 2', String lf, '3 + 4'.
+
+	self assert: (source includesString: String lf) not.
+	self assert: (source includesString: '1 + 2', String cr, '3 + 4')
+]
+
+{ #category : 'tests' }
+SigGemStoneGatewayTest >> testWorkspaceExecutedCodeBodyBoundsHandlesMixedLineEndings [
+	| bounds source |
+	source :=
+		'sigWorkspaceABC123', String cr,
+		gateway workspaceDebugHookSourceLine, String cr,
+		'^ [', String cr,
+		'1 + 2.', String cr,
+		'3 + 4', String cr,
+		'] value'.
+
+	bounds := gateway workspaceExecutedCodeBodyBoundsInSource: source.
+
+	self assert: (source copyFrom: bounds first to: bounds second)
+		equals: '1 + 2.', String cr, '3 + 4'
 ]
