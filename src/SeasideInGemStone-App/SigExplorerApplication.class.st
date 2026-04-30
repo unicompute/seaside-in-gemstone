@@ -2,7 +2,7 @@ Class {
 	#name : 'SigExplorerApplication',
 	#superclass : 'WAComponent',
 	#instVars : [
-		'gateway',
+		'gatewayOverride',
 		'selectedRootName',
 		'selectedEntryKey',
 		'statusMessage',
@@ -53,7 +53,8 @@ SigExplorerApplication class >> initializeApplication [
 	| application |
 	WAAdmin unregister: self applicationPath.
 	application := WAAdmin register: self asApplicationAt: self applicationPath.
-	application preferenceAt: #trackingStrategy put: WACookieIfSupportedSessionTrackingStrategy new
+	application preferenceAt: #trackingStrategy put: WACookieIfSupportedSessionTrackingStrategy new.
+	application preferenceAt: #sessionClass put: SigExplorerSession
 ]
 
 { #category : 'actions' }
@@ -66,7 +67,7 @@ SigExplorerApplication >> abortTransaction [
 
 { #category : 'querying' }
 SigExplorerApplication >> browserClassAssociations [
-	^ self gateway classAssociationsForDictionaryNamed: selectedBrowserDictionaryName
+	^ self browserClassAssociationsForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -84,15 +85,12 @@ SigExplorerApplication >> browserDictionaryNames [
 SigExplorerApplication >> browserDictionaryNameForWindow: aWindow [
 	^ aWindow
 		ifNil: [ selectedBrowserDictionaryName ]
-		ifNotNil: [ aWindow at: #selectedBrowserDictionaryName ifAbsent: [ #UserGlobals ] ]
+		ifNotNil: [ aWindow selectedDictionaryName ]
 ]
 
 { #category : 'querying' }
 SigExplorerApplication >> browserProtocolNames [
-	selectedBrowserClassName ifNil: [ ^ #() ].
-	^ self gateway
-		protocolNamesForClassNamed: selectedBrowserClassName
-		inDictionaryNamed: selectedBrowserDictionaryName
+	^ self browserProtocolNamesForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -105,11 +103,7 @@ SigExplorerApplication >> browserProtocolNamesForWindow: aWindow [
 
 { #category : 'querying' }
 SigExplorerApplication >> browserSelectorNames [
-	(selectedBrowserClassName isNil or: [ selectedBrowserProtocolName isNil ]) ifTrue: [ ^ #() ].
-	^ self gateway
-		selectorsForClassNamed: selectedBrowserClassName
-		protocolNamed: selectedBrowserProtocolName
-		inDictionaryNamed: selectedBrowserDictionaryName
+	^ self browserSelectorNamesForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -124,10 +118,7 @@ SigExplorerApplication >> browserSelectorNamesForWindow: aWindow [
 
 { #category : 'querying' }
 SigExplorerApplication >> browserSourceText [
-	^ self gateway
-		methodSourceForClassNamed: selectedBrowserClassName
-		selectorNamed: selectedBrowserSelector
-		inDictionaryNamed: selectedBrowserDictionaryName
+	^ self browserSourceTextForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -140,9 +131,7 @@ SigExplorerApplication >> browserSourceTextForWindow: aWindow [
 
 { #category : 'querying' }
 SigExplorerApplication >> browserEditableSourceText [
-	browserSourceDraftText ifNotNil: [ ^ browserSourceDraftText ].
-	(selectedBrowserClassName isNil or: [ selectedBrowserSelector isNil ]) ifTrue: [ ^ '' ].
-	^ self browserSourceText
+	^ self browserEditableSourceTextForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -157,9 +146,7 @@ SigExplorerApplication >> browserEditableSourceTextForWindow: aWindow [
 
 { #category : 'querying' }
 SigExplorerApplication >> browserSourceHeadingText [
-	selectedBrowserClassName ifNil: [ ^ 'Select a class to start browsing.' ].
-	selectedBrowserSelector isNil ifTrue: [ ^ selectedBrowserClassName, ' is selected.' ].
-	^ selectedBrowserClassName, ' >> ', selectedBrowserSelector
+	^ self browserSourceHeadingTextForWindow: nil
 ]
 
 { #category : 'querying' }
@@ -211,56 +198,56 @@ SigExplorerApplication >> browserResetSourceDraftForWindow: aWindow [
 SigExplorerApplication >> browserClassNameForWindow: aWindow [
 	^ aWindow
 		ifNil: [ selectedBrowserClassName ]
-		ifNotNil: [ aWindow at: #selectedBrowserClassName ifAbsent: [ nil ] ]
+		ifNotNil: [ aWindow selectedClassName ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserClassName: aString forWindow: aWindow [
 	aWindow
 		ifNil: [ selectedBrowserClassName := aString ]
-		ifNotNil: [ aWindow at: #selectedBrowserClassName put: aString ]
+		ifNotNil: [ aWindow selectedClassName: aString ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserProtocolNameForWindow: aWindow [
 	^ aWindow
 		ifNil: [ selectedBrowserProtocolName ]
-		ifNotNil: [ aWindow at: #selectedBrowserProtocolName ifAbsent: [ nil ] ]
+		ifNotNil: [ aWindow selectedProtocolName ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserProtocolName: aString forWindow: aWindow [
 	aWindow
 		ifNil: [ selectedBrowserProtocolName := aString ]
-		ifNotNil: [ aWindow at: #selectedBrowserProtocolName put: aString ]
+		ifNotNil: [ aWindow selectedProtocolName: aString ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserSelectorForWindow: aWindow [
 	^ aWindow
 		ifNil: [ selectedBrowserSelector ]
-		ifNotNil: [ aWindow at: #selectedBrowserSelector ifAbsent: [ nil ] ]
+		ifNotNil: [ aWindow selectedSelector ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserSelector: aString forWindow: aWindow [
 	aWindow
 		ifNil: [ selectedBrowserSelector := aString ]
-		ifNotNil: [ aWindow at: #selectedBrowserSelector put: aString ]
+		ifNotNil: [ aWindow selectedSelector: aString ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserSourceDraftTextForWindow: aWindow [
 	^ aWindow
 		ifNil: [ browserSourceDraftText ]
-		ifNotNil: [ aWindow at: #browserSourceDraftText ifAbsent: [ nil ] ]
+		ifNotNil: [ aWindow sourceDraftText ]
 ]
 
 { #category : 'accessing' }
 SigExplorerApplication >> browserSourceDraftText: aString forWindow: aWindow [
 	aWindow
 		ifNil: [ browserSourceDraftText := aString ]
-		ifNotNil: [ aWindow at: #browserSourceDraftText put: aString ]
+		ifNotNil: [ aWindow sourceDraftText: aString ]
 ]
 
 { #category : 'actions' }
@@ -470,18 +457,11 @@ SigExplorerApplication >> debuggerFrameSourceMetaTextFor: aFrame position: frame
 
 { #category : 'private' }
 SigExplorerApplication >> debuggerFrameSourceCursorLocationFor: aFrame [
-	| cursorLocation currentStep nextLocation |
+	| currentStep |
 	(self debuggerFrameIsExecutedCode: aFrame) ifFalse: [
 		^ self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: (aFrame at: #quickStepPoint ifAbsent: [ nil ]) ].
 	currentStep := aFrame at: #quickStepPoint ifAbsent: [ nil ].
-	cursorLocation := self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: currentStep.
-	cursorLocation ifNil: [ ^ nil ].
-	currentStep := [ currentStep asInteger ] on: Error do: [ nil ].
-	(currentStep isNil or: [ currentStep <= 1 ]) ifTrue: [ ^ cursorLocation ].
-	(self debuggerFrameStepPointStartsNewStatement: currentStep in: aFrame) ifFalse: [
-		nextLocation := self debuggerFrameNextStatementCursorLocationFor: aFrame afterStepPoint: currentStep.
-		nextLocation ifNotNil: [ ^ nextLocation ] ].
-	^ cursorLocation
+	^ self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: currentStep
 ]
 
 { #category : 'private' }
@@ -504,20 +484,6 @@ SigExplorerApplication >> debuggerFrameSourceCursorLocationFor: aFrame stepPoint
 	^ self
 		debuggerSourceCursorLocationIn: sourceText
 		atOffset: offset
-]
-
-{ #category : 'private' }
-SigExplorerApplication >> debuggerFrameNextStatementCursorLocationFor: aFrame afterStepPoint: aStepPoint [
-	| nextStep sourceOffsets |
-	aFrame ifNil: [ ^ nil ].
-	sourceOffsets := aFrame at: #sourceOffsets ifAbsent: [ nil ].
-	sourceOffsets ifNil: [ ^ nil ].
-	nextStep := aStepPoint + 1.
-	[ nextStep <= sourceOffsets size ] whileTrue: [
-		(self debuggerFrameStepPointStartsNewStatement: nextStep in: aFrame)
-			ifTrue: [ ^ self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: nextStep ].
-		nextStep := nextStep + 1 ].
-	^ nil
 ]
 
 { #category : 'private' }
@@ -1039,19 +1005,28 @@ SigExplorerApplication >> inspectorWindowPositionForIndex: anInteger [
 ]
 
 { #category : 'private' }
+SigExplorerApplication >> maximumInspectorWindows [
+	^ 20
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> pruneOldInspectorWindows [
+	[ inspectorWindows size >= self maximumInspectorWindows ]
+		whileTrue: [ inspectorWindows removeFirst ]
+]
+
+{ #category : 'private' }
 SigExplorerApplication >> newInspectorWindowForText: aString label: aLabel [
-	| window windowId windowNumber |
+	| window windowNumber |
+	self pruneOldInspectorWindows.
 	windowNumber := nextInspectorWindowNumber := nextInspectorWindowNumber + 1.
-	windowId := 'sig-window-object-', windowNumber printString.
-	window := Dictionary new
-		at: #id put: windowId;
-		at: #title put: (self inspectorWindowTitleForWindowNumber: windowNumber);
-		at: #taskbarLabel put: (self inspectorTaskbarLabelForWindowNumber: windowNumber);
-		at: #subtitle put: '';
-		at: #position put: (self inspectorWindowPositionForIndex: windowNumber);
-		at: #label put: aLabel;
-		at: #text put: (aString ifNil: [ 'Nothing selected for inspection.' ]);
-		yourself.
+	window := SigInspectorWindow
+		id: 'sig-window-object-', windowNumber printString
+		title: (self inspectorWindowTitleForWindowNumber: windowNumber)
+		taskbarLabel: (self inspectorTaskbarLabelForWindowNumber: windowNumber)
+		position: (self inspectorWindowPositionForIndex: windowNumber)
+		label: aLabel
+		text: aString.
 	inspectorWindows addLast: window.
 	^ window
 ]
@@ -1124,28 +1099,32 @@ SigExplorerApplication >> auxiliaryWindowPositionForKind: aSymbol index: anInteg
 
 { #category : 'private' }
 SigExplorerApplication >> newAuxiliaryWindowForKind: aSymbol [
-	| window windowId windowNumber |
+	| window windowId windowNumber windowTitle windowTaskbarLabel windowPosition |
 	windowNumber := nextAuxiliaryWindowNumber := nextAuxiliaryWindowNumber + 1.
 	windowId := 'sig-window-', aSymbol asString, '-aux-', windowNumber printString.
+	windowTitle := self auxiliaryWindowTitleForKind: aSymbol number: windowNumber.
+	windowTaskbarLabel := self auxiliaryWindowTaskbarLabelForKind: aSymbol number: windowNumber.
+	windowPosition := self auxiliaryWindowPositionForKind: aSymbol index: windowNumber.
+	aSymbol = #browser ifTrue: [
+		window := SigBrowserWindow
+			id: windowId
+			title: windowTitle
+			taskbarLabel: windowTaskbarLabel
+			position: windowPosition.
+		auxiliaryWindows addLast: window.
+		^ window ].
 	window := Dictionary new
 		at: #id put: windowId;
 		at: #kind put: aSymbol;
-		at: #title put: (self auxiliaryWindowTitleForKind: aSymbol number: windowNumber);
-		at: #taskbarLabel put: (self auxiliaryWindowTaskbarLabelForKind: aSymbol number: windowNumber);
+		at: #title put: windowTitle;
+		at: #taskbarLabel put: windowTaskbarLabel;
 		at: #subtitle put: '';
-		at: #position put: (self auxiliaryWindowPositionForKind: aSymbol index: windowNumber);
+		at: #position put: windowPosition;
 		yourself.
 	aSymbol = #workspace ifTrue: [
 		window
 			at: #workspaceSourceText put: '1 + 2';
 			at: #workspaceResultText put: '' ].
-	aSymbol = #browser ifTrue: [
-		window
-			at: #selectedBrowserDictionaryName put: #UserGlobals;
-			at: #selectedBrowserClassName put: nil;
-			at: #selectedBrowserProtocolName put: nil;
-			at: #selectedBrowserSelector put: nil;
-			at: #browserSourceDraftText put: nil ].
 	aSymbol = #symbolList ifTrue: [
 		window
 			at: #selectedSymbolListDictionaryName put: #UserGlobals;
@@ -1164,21 +1143,20 @@ SigExplorerApplication >> openAdditionalWindowOfKind: aSymbol [
 
 { #category : 'private' }
 SigExplorerApplication >> newInspectorWindowForObject: anObject label: aLabel title: aTitle [
-	| inspection window windowId windowNumber |
+	| inspection window windowNumber windowTitle |
+	self pruneOldInspectorWindows.
 	inspection := self gateway inspectionSnapshotFor: anObject.
 	windowNumber := nextInspectorWindowNumber := nextInspectorWindowNumber + 1.
-	windowId := 'sig-window-object-', windowNumber printString.
-	window := Dictionary new
-		at: #id put: windowId;
-		at: #title put: (aTitle ifNil: [ self inspectorWindowTitleForWindowNumber: windowNumber ]);
-		at: #taskbarLabel put: (aTitle ifNil: [ self inspectorTaskbarLabelForWindowNumber: windowNumber ]);
-		at: #subtitle put: '';
-		at: #position put: (self inspectorWindowPositionForIndex: windowNumber);
-		at: #label put: aLabel;
-		at: #rowsTitle put: (inspection at: #rowsTitle ifAbsent: [ 'Index / Values' ]);
-		at: #rows put: (inspection at: #rows ifAbsent: [ #() ]);
-		at: #text put: (inspection at: #printString ifAbsent: [ self gateway longDisplayStringFor: anObject ]);
-		yourself.
+	windowTitle := aTitle ifNil: [ self inspectorWindowTitleForWindowNumber: windowNumber ].
+	window := SigInspectorWindow
+		id: 'sig-window-object-', windowNumber printString
+		title: windowTitle
+		taskbarLabel: (aTitle ifNil: [ self inspectorTaskbarLabelForWindowNumber: windowNumber ])
+		position: (self inspectorWindowPositionForIndex: windowNumber)
+		label: aLabel
+		rowsTitle: (inspection at: #rowsTitle ifAbsent: [ 'Index / Values' ])
+		rows: (inspection at: #rows ifAbsent: [ #() ])
+		text: (inspection at: #printString ifAbsent: [ self gateway longDisplayStringFor: anObject ]).
 	inspectorWindows addLast: window.
 	^ window
 ]
@@ -1194,7 +1172,7 @@ SigExplorerApplication >> openSelectedEntryInNewWindow [
 		newInspectorWindowForObject: association value
 		label: 'Explorer / ', association key asString
 		title: association key asString.
-	self requestWindowShow: (window at: #id).
+	self requestWindowShow: window windowId.
 	self setStatusMessage: 'Opened ', association key asString, ' in a new window'
 ]
 
@@ -1209,7 +1187,7 @@ SigExplorerApplication >> inspectSelectedEntry [
 		newInspectorWindowForObject: association value
 		label: 'Explorer / ', association key asString
 		title: association key asString.
-	self requestWindowShow: (window at: #id).
+	self requestWindowShow: window windowId.
 	self setStatusMessage: 'Inspecting ', association key asString
 ]
 
@@ -1229,7 +1207,7 @@ SigExplorerApplication >> openSelectedSymbolListEntryInNewWindowFor: aWindow [
 		newInspectorWindowForObject: association value
 		label: 'Symbols / ', association key asString
 		title: association key asString.
-	self requestWindowShow: (window at: #id).
+	self requestWindowShow: window windowId.
 	self setStatusMessage: 'Opened ', association key asString, ' in a new window'
 ]
 
@@ -1249,7 +1227,7 @@ SigExplorerApplication >> inspectSelectedSymbolListEntryFor: aWindow [
 		newInspectorWindowForObject: association value
 		label: 'Symbols / ', association key asString
 		title: association key asString.
-	self requestWindowShow: (window at: #id).
+	self requestWindowShow: window windowId.
 	self setStatusMessage: 'Inspecting ', association key asString
 ]
 
@@ -1263,7 +1241,7 @@ SigExplorerApplication >> inspectStructuredInspectorRow: aRow [
 		newInspectorWindowForObject: object
 		label: 'Inspector / ', title asString
 		title: title asString.
-	self requestWindowShow: (window at: #id).
+	self requestWindowShow: window windowId.
 	self setStatusMessage: 'Inspecting ', title asString
 ]
 
@@ -1475,6 +1453,7 @@ SigExplorerApplication >> desktopScript [
             display: win.style.display || window.getComputedStyle(win).display,
             collapsedHeight: win.dataset.sigCollapsedHeight || '''',
             left: win.style.left || '''',
+            manualPosition: win.classList.contains(''sig-window-manual-position''),
             maximized: win.classList.contains(''sig-window-maximized''),
             restoreHeight: win.dataset.sigRestoreHeight || '''',
             restoreLeft: win.dataset.sigRestoreLeft || '''',
@@ -1493,6 +1472,7 @@ SigExplorerApplication >> desktopScript [
   }
 
   function restoreDesktopState() {
+    var forcedVisibleIds;
     var raw;
     var restoredIds;
     var state;
@@ -1506,16 +1486,22 @@ SigExplorerApplication >> desktopScript [
     }
     if (!state || !state.windows || !state.windows.length) return false;
     restored = false;
+    forcedVisibleIds = [];
     restoredIds = {};
     state.windows.forEach(function (saved) {
+      var forceVisible;
+      var serverWantsVisible;
       var win = document.getElementById(saved.id);
       if (!win) return;
+      serverWantsVisible = win.style.display !== ''none'';
+      forceVisible = serverWantsVisible && saved.display === ''none'';
       restoredIds[saved.id] = true;
       if (saved.left) win.style.left = saved.left;
       if (saved.top) win.style.top = saved.top;
       if (saved.width) win.style.width = saved.width;
       if (saved.height) win.style.height = saved.height;
       if (saved.zIndex) win.style.zIndex = saved.zIndex;
+      win.classList.toggle(''sig-window-manual-position'', !!saved.manualPosition);
       if (saved.restoreLeft) {
         win.dataset.sigRestoreLeft = saved.restoreLeft;
       } else {
@@ -1541,22 +1527,31 @@ SigExplorerApplication >> desktopScript [
       } else {
         delete win.dataset.sigCollapsedHeight;
       }
-      win.style.display = saved.display || ''block'';
-      win.classList.toggle(''sig-window-collapsed'', !!saved.collapsed);
+      win.style.display = forceVisible
+        ? ''block''
+        : (saved.display || ''block'');
+      win.classList.toggle(''sig-window-collapsed'', forceVisible
+        ? false
+        : !!saved.collapsed);
       win.classList.toggle(''sig-window-maximized'', !!saved.maximized);
       if (saved.maximized) {
         applyMaximizedBounds(win);
       }
-      win.classList.toggle(''sig-window-active'', !!saved.active);
+      win.classList.toggle(''sig-window-active'', forceVisible
+        ? false
+        : !!saved.active);
       clampWindowToDesktop(win);
+      if (forceVisible) {
+        forcedVisibleIds.push(win.id);
+      }
       restored = true;
     });
     runtime.newlyVisibleWindowIds = restored
-      ? getManagedWindows()
+      ? forcedVisibleIds.concat(getManagedWindows()
           .filter(function (win) {
             return !restoredIds[win.id] && window.getComputedStyle(win).display !== ''none'';
           })
-          .map(function (win) { return win.id; })
+          .map(function (win) { return win.id; }))
       : [];
     if (restored) {
       focusTopVisibleWindow();
@@ -1632,6 +1627,7 @@ SigExplorerApplication >> desktopScript [
     runtime.requestInFlight = true;
     closeMenus();
     hideContextMenu();
+    hideWorkspaceContextMenus();
     saveScrollPanes();
     saveDesktopState();
     requestOptions = options ? Object.assign({}, options) : {};
@@ -1770,6 +1766,15 @@ SigExplorerApplication >> desktopScript [
     };
   }
 
+  function enableManualWindowPosition(win) {
+    var metrics = desktopMetrics();
+    var box = currentWindowBox(win, metrics);
+    win.classList.add(''sig-window-manual-position'');
+    if (box.width) win.style.width = Math.round(box.width) + ''px'';
+    if (box.height) win.style.height = Math.round(box.height) + ''px'';
+    setWindowPosition(win, box.left, box.top);
+  }
+
   function hideWindow(win) {
     win.style.display = ''none'';
     win.classList.remove(''sig-window-active'');
@@ -1825,6 +1830,7 @@ SigExplorerApplication >> desktopScript [
       clampWindowToDesktop(win);
     } else {
       rememberWindowRestoreBounds(win);
+      win.classList.remove(''sig-window-manual-position'');
       win.classList.add(''sig-window-maximized'');
       applyMaximizedBounds(win);
     }
@@ -1838,7 +1844,7 @@ SigExplorerApplication >> desktopScript [
     var box;
     var left;
     var top;
-    if (!metrics.desktop || window.matchMedia(''(max-width: 1100px)'').matches) return;
+    if (!metrics.desktop || window.matchMedia(''(max-width: 760px)'').matches) return;
     if (win.classList.contains(''sig-window-maximized'')) {
       applyMaximizedBounds(win);
       return;
@@ -1860,7 +1866,7 @@ SigExplorerApplication >> desktopScript [
     var cursorLeft;
     var cursorTop;
     var rowHeight;
-    if (!metrics.desktop || window.matchMedia(''(max-width: 1100px)'').matches) return;
+    if (!metrics.desktop || window.matchMedia(''(max-width: 760px)'').matches) return;
     cursorLeft = metrics.margin;
     cursorTop = metrics.margin;
     rowHeight = 0;
@@ -1894,7 +1900,7 @@ SigExplorerApplication >> desktopScript [
     var top = metrics.margin;
     var maxLeft = Math.max(metrics.margin, metrics.availableWidth - 360);
     var maxTop = Math.max(metrics.margin, metrics.availableHeight - 240);
-    if (!metrics.desktop || window.matchMedia(''(max-width: 1100px)'').matches) return;
+    if (!metrics.desktop || window.matchMedia(''(max-width: 760px)'').matches) return;
     getManagedWindows().forEach(function (win) {
       win.style.display = ''block'';
       setWindowPosition(win, left, top);
@@ -1918,7 +1924,7 @@ SigExplorerApplication >> desktopScript [
     var rows;
     var cellWidth;
     var cellHeight;
-    if (!metrics.desktop || window.matchMedia(''(max-width: 1100px)'').matches || !windows.length) return;
+    if (!metrics.desktop || window.matchMedia(''(max-width: 760px)'').matches || !windows.length) return;
     cols = Math.max(1, Math.ceil(Math.sqrt(windows.length)));
     rows = Math.max(1, Math.ceil(windows.length / cols));
     cellWidth = Math.max(320, Math.floor((metrics.availableWidth - (metrics.margin * 2) - (metrics.gap * (cols - 1))) / cols));
@@ -2024,10 +2030,18 @@ SigExplorerApplication >> desktopScript [
     }
 
     handle.addEventListener(''mousedown'', function (event) {
-      var metrics = desktopMetrics();
-      var box = currentWindowBox(win, metrics);
+      var metrics;
+      var box;
       if (event.target.closest(''.sig-window-controls'')) return;
-      if (win.classList.contains(''sig-window-maximized'')) return;
+      if (win.classList.contains(''sig-window-maximized'')) {
+        win.classList.remove(''sig-window-maximized'');
+        restoreRememberedWindowBounds(win);
+      }
+      if (window.matchMedia(''(max-width: 760px)'').matches) {
+        enableManualWindowPosition(win);
+      }
+      metrics = desktopMetrics();
+      box = currentWindowBox(win, metrics);
       runtime.dragState = {
         window: win,
         startX: event.clientX,
@@ -2169,6 +2183,59 @@ SigExplorerApplication >> desktopScript [
     });
   }
 
+  function hideWorkspaceContextMenus() {
+    Array.prototype.forEach.call(document.querySelectorAll(''.ws-context-menu''), function (menu) {
+      menu.style.display = ''none'';
+    });
+  }
+
+  function installWorkspaceContextMenus() {
+    if (runtime.workspaceContextMenusInstalled) return;
+    runtime.workspaceContextMenusInstalled = true;
+
+    document.addEventListener(''contextmenu'', function (event) {
+      var shell = event.target.closest(''.sig-workspace-shell'');
+      var menu;
+      if (!shell) return;
+      menu = shell.querySelector(''.ws-context-menu'');
+      if (!menu) return;
+      event.preventDefault();
+      closeMenus();
+      hideContextMenu();
+      hideWorkspaceContextMenus();
+      menu.style.display = ''block'';
+      menu.style.left = event.clientX + ''px'';
+      menu.style.top = event.clientY + ''px'';
+    });
+
+    document.addEventListener(''click'', function (event) {
+      var action = event.target.closest(''[data-workspace-menu-action]'');
+      var button;
+      var form;
+      var shell;
+      if (action) {
+        event.preventDefault();
+        shell = action.closest(''.sig-workspace-shell'');
+        form = shell && shell.querySelector(''form[data-sig-remote]'');
+        button = form && form.querySelector(''[data-workspace-action="'' + action.getAttribute(''data-workspace-menu-action'') + ''"]'');
+        hideWorkspaceContextMenus();
+        if (button) {
+          button.click();
+        }
+        return;
+      }
+      if (!event.target.closest(''.ws-context-menu'')) {
+        hideWorkspaceContextMenus();
+      }
+    });
+
+    document.addEventListener(''keydown'', function (event) {
+      if (event.key === ''Escape'') {
+        hideWorkspaceContextMenus();
+      }
+    });
+  }
+
   function installLocalCommands() {
     if (runtime.localCommandsInstalled) return;
     runtime.localCommandsInstalled = true;
@@ -2240,6 +2307,7 @@ SigExplorerApplication >> desktopScript [
     installDesktopMenu();
     installTopMenus();
     installTabbedPanes();
+    installWorkspaceContextMenus();
     installLocalCommands();
     installRemoteInteractions();
     restoreScrollPanes();
@@ -2298,14 +2366,13 @@ SigExplorerApplication >> entryAssociations [
 
 { #category : 'accessing' }
 SigExplorerApplication >> gateway [
-	gateway ifNil: [ gateway := SigGemStoneGateway new ].
-	gateway sanitizeDebugSessions.
-	^ gateway
+	gatewayOverride ifNotNil: [ ^ gatewayOverride ].
+	^ self session gateway
 ]
 
 { #category : 'accessing' }
-SigExplorerApplication >> gateway: anObject [
-	gateway := anObject
+SigExplorerApplication >> gateway: aGateway [
+	gatewayOverride := aGateway
 ]
 
 { #category : 'initialization' }
@@ -3122,32 +3189,32 @@ SigExplorerApplication >> renderFloatingWindowOn: html id: anId title: aTitle su
 		style: aPositionString;
 		with: [ :window |
 			window div class: 'sig-window-titlebar'; with: [ :titleBar |
+				titleBar div class: 'sig-window-headings'; with: [ :headings |
+					headings heading level2; with: aTitle.
+					aSubtitle isEmpty ifFalse: [
+						headings span class: 'sig-window-subtitle'; with: aSubtitle ] ].
 				titleBar div class: 'sig-window-controls'; with: [ :controls |
 					controls anchor
-						class: 'sig-window-control close';
+						class: 'sig-window-control collapse';
 						attributeAt: 'href' put: '#';
-						attributeAt: 'data-sig-window-action' put: 'close';
-						attributeAt: 'title' put: 'Close window';
-						attributeAt: 'aria-label' put: 'Close window';
-						with: ''.
-						controls anchor
-							class: 'sig-window-control collapse';
-							attributeAt: 'href' put: '#';
-							attributeAt: 'data-sig-window-action' put: 'collapse';
-							attributeAt: 'title' put: 'Minimise window';
-							attributeAt: 'aria-label' put: 'Minimise window';
-							with: ''.
+						attributeAt: 'data-sig-window-action' put: 'collapse';
+						attributeAt: 'title' put: 'Minimise window';
+						attributeAt: 'aria-label' put: 'Minimise window';
+						with: '_'.
 					controls anchor
 						class: 'sig-window-control expand';
 						attributeAt: 'href' put: '#';
 						attributeAt: 'data-sig-window-action' put: 'expand';
 						attributeAt: 'title' put: 'Expand window';
 						attributeAt: 'aria-label' put: 'Expand window';
-						with: '' ].
-					titleBar div class: 'sig-window-headings'; with: [ :headings |
-						headings heading level2; with: aTitle.
-						aSubtitle isEmpty ifFalse: [
-							headings span class: 'sig-window-subtitle'; with: aSubtitle ] ] ].
+						with: '[]'.
+					controls anchor
+						class: 'sig-window-control close';
+						attributeAt: 'href' put: '#';
+						attributeAt: 'data-sig-window-action' put: 'close';
+						attributeAt: 'title' put: 'Close window';
+						attributeAt: 'aria-label' put: 'Close window';
+						with: 'x' ] ].
 				window div class: 'sig-window-body'; with: [ :body | aBlock value: body ] ]
 ]
 
@@ -3322,10 +3389,10 @@ SigExplorerApplication >> renderInspectorContentsOn: html label: aLabel rowsTitl
 SigExplorerApplication >> renderInspectorWindowOn: html window: aWindow [
 	self
 		renderInspectorContentsOn: html
-		label: (aWindow at: #label ifAbsent: [ 'Object' ])
-		rowsTitle: (aWindow at: #rowsTitle ifAbsent: [ 'Index / Values' ])
-		rows: (aWindow at: #rows ifAbsent: [ #() ])
-		text: (aWindow at: #text ifAbsent: [ 'Nothing selected for inspection.' ])
+		label: aWindow label
+		rowsTitle: aWindow rowsTitle
+		rows: aWindow rows
+		text: aWindow text
 ]
 
 { #category : 'rendering' }
@@ -3575,22 +3642,27 @@ SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 						doItButton
 							class: 'btn';
 							attributeAt: 'data-sig-primary-submit' put: 'workspace-doit';
+							attributeAt: 'data-workspace-action' put: 'doit';
 							callback: [ self workspaceDoItForWindow: aWindow ];
 							with: 'Do it'.
 						html submitButton
 							class: 'btn-ghost';
+							attributeAt: 'data-workspace-action' put: 'print';
 							callback: [ self workspacePrintItForWindow: aWindow ];
 							with: 'Print it'.
 						html submitButton
 							class: 'btn-ghost';
+							attributeAt: 'data-workspace-action' put: 'inspect';
 							callback: [ self workspaceInspectItForWindow: aWindow ];
 							with: 'Inspect it'.
 						html submitButton
 							class: 'btn-ghost';
+							attributeAt: 'data-workspace-action' put: 'debug';
 							callback: [ self workspaceDebugItForWindow: aWindow ];
 							with: 'Debug it'.
 						html submitButton
 							class: 'btn-ghost';
+							attributeAt: 'data-workspace-action' put: 'clear';
 							callback: [ self clearWorkspaceOutputForWindow: aWindow ];
 							with: 'Clear'.
 						html span class: 'ws-hint'; with: 'Ctrl+Enter' ] ].
@@ -3607,7 +3679,33 @@ SigExplorerApplication >> renderWorkspaceOn: html window: aWindow [
 					html submitButton
 						class: 'btn-tx btn-tx-active';
 						callback: [ self continueTransaction ];
-						with: 'Continue' ] ] ]
+						with: 'Continue' ] ].
+		html div class: 'ws-context-menu'; with: [
+			html anchor
+				url: '#';
+				class: 'sig-local-command ws-context-action';
+				attributeAt: 'data-workspace-menu-action' put: 'doit';
+				with: 'Do it'.
+			html anchor
+				url: '#';
+				class: 'sig-local-command ws-context-action';
+				attributeAt: 'data-workspace-menu-action' put: 'print';
+				with: 'Print it'.
+			html anchor
+				url: '#';
+				class: 'sig-local-command ws-context-action';
+				attributeAt: 'data-workspace-menu-action' put: 'inspect';
+				with: 'Inspect it'.
+			html anchor
+				url: '#';
+				class: 'sig-local-command ws-context-action';
+				attributeAt: 'data-workspace-menu-action' put: 'debug';
+				with: 'Debug it'.
+			html anchor
+				url: '#';
+				class: 'sig-local-command ws-context-action';
+				attributeAt: 'data-workspace-menu-action' put: 'clear';
+				with: 'Clear' ] ]
 ]
 
 { #category : 'querying' }
@@ -3832,12 +3930,13 @@ SigExplorerApplication >> selectBrowserDictionaryNamed: aSymbol [
 { #category : 'actions' }
 SigExplorerApplication >> selectBrowserDictionaryNamed: aSymbol forWindow: aWindow [
 	aWindow
-		ifNil: [ selectedBrowserDictionaryName := aSymbol ]
-		ifNotNil: [ aWindow at: #selectedBrowserDictionaryName put: aSymbol ].
-	self browserClassName: nil forWindow: aWindow.
-	self browserProtocolName: nil forWindow: aWindow.
-	self browserSelector: nil forWindow: aWindow.
-	self browserSourceDraftText: nil forWindow: aWindow.
+		ifNil: [
+			selectedBrowserDictionaryName := aSymbol.
+			selectedBrowserClassName := nil.
+			selectedBrowserProtocolName := nil.
+			selectedBrowserSelector := nil.
+			browserSourceDraftText := nil ]
+		ifNotNil: [ aWindow selectedDictionaryName: aSymbol ].
 	self setStatusMessage: 'Browsing dictionary ', aSymbol asString
 ]
 
@@ -4037,24 +4136,24 @@ SigExplorerApplication >> renderWindowActionLinkOn: html label: aLabel target: a
 SigExplorerApplication >> stylesheet [
 	^ '
 :root {
-		--sig-bg: #111417;
-		--sig-surface-0: #171b20;
-		--sig-surface-1: #1b2026;
-		--sig-surface-2: #212730;
-		--sig-surface-3: #0f1318;
-		--sig-surface-4: #0b0e12;
-		--sig-window-bg: #171b20;
-		--sig-window-border: #39424d;
-		--sig-border: #39424d;
-		--sig-border-soft: #323a44;
-		--sig-text: #dbe4ee;
-		--sig-muted: #93a0ae;
-		--sig-subtle: #6f7a86;
-		--sig-accent: #7ec8ff;
-		--sig-accent-strong: #7ec8ff;
-		--sig-success: #9fd49a;
-		--sig-warning: #d8c07a;
-		--sig-danger: #de8f9a;
+		--sig-bg: #e8e8e8;
+		--sig-surface-0: #f5f5f5;
+		--sig-surface-1: #ffffff;
+		--sig-surface-2: #eeeeee;
+		--sig-surface-3: #d4d4d4;
+		--sig-surface-4: #c8c8c8;
+		--sig-window-bg: #f5f5f5;
+		--sig-window-border: #b0b0b0;
+		--sig-border: #b0b0b0;
+		--sig-border-soft: #c0c0c0;
+		--sig-text: #1c1c1c;
+		--sig-muted: #555555;
+		--sig-subtle: #777777;
+		--sig-accent: #1874CD;
+		--sig-accent-strong: #1874CD;
+		--sig-success: #1a7a1a;
+		--sig-warning: #8a6000;
+		--sig-danger: #aa0000;
 		--sig-shadow: none;
 		--sig-panel-shadow: none;
 		--sig-window-glow: none;
@@ -4070,9 +4169,9 @@ body {
 		font-family: "SF Pro Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 		margin: 0;
 		color: var(--sig-text);
-		background: #0d1014;
+		background: #e8e8e8;
 	background-attachment: fixed;
-	letter-spacing: 0.01em;
+	letter-spacing: 0;
 }
 
 body.sig-dragging {
@@ -4100,8 +4199,8 @@ a:hover {
 	gap: 0.7rem;
 	align-items: center;
 		padding: 0.24rem 0.45rem;
-		background: #12161b;
-		border-bottom: 1px solid #323a44;
+		background: #d4d4d4;
+		border-bottom: 1px solid #b0b0b0;
 	backdrop-filter: none;
 	box-shadow: none;
 	color: var(--sig-text);
@@ -4111,7 +4210,7 @@ a:hover {
 	font-size: 0.72rem;
 	font-weight: 600;
 	letter-spacing: 0;
-	color: #d7dde6;
+	color: #1c1c1c;
 	text-transform: none;
 }
 
@@ -4132,17 +4231,17 @@ a:hover {
 	justify-content: center;
 		padding: 0.14rem 0.44rem;
 		min-height: 1.55rem;
-		border-radius: 3px;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-	color: #d7dde6;
+		border-radius: 0;
+		background: #d4d4d4;
+		border: 1px solid #b0b0b0;
+	color: #1c1c1c;
 	font-size: 0.72rem;
 	font-weight: 500;
 	box-shadow: none;
 }
 
 .sig-menu-trigger:hover {
-	background: rgba(36, 42, 50, 0.98);
+	background: #c4c4c4;
 	text-decoration: none;
 }
 
@@ -4153,9 +4252,9 @@ a:hover {
 	display: none;
 	min-width: 13rem;
 		padding: 0.22rem;
-		border-radius: 3px;
-		background: #161b21;
-		border: 1px solid #323a44;
+		border-radius: 0;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
 		box-shadow: none;
 	backdrop-filter: none;
 }
@@ -4167,18 +4266,16 @@ a:hover {
 .sig-menu-item {
 	display: block;
 	padding: 0.32rem 0.44rem;
-	border-radius: 4px;
-	color: #d7dde6;
+	border-radius: 0;
+	color: #1c1c1c;
 	font-size: 0.72rem;
 	white-space: nowrap;
-	transition: background 120ms ease, color 120ms ease;
 }
 
 .sig-menu-item:hover {
-	background: rgba(126, 200, 255, 0.1);
-	color: #edf1f6;
+	background: #1874CD;
+	color: #ffffff;
 	text-decoration: none;
-	transform: none;
 }
 
 .sig-menu-status {
@@ -4196,11 +4293,11 @@ a:hover {
 .sig-status-badge {
 	max-width: 22rem;
 	padding: 0.16rem 0.5rem;
-	border-radius: 999px;
-	background: rgba(126, 200, 255, 0.08);
-	color: #dce5ef;
+	border-radius: 0;
+	background: #e8e8e8;
+	color: #1c1c1c;
 	font-size: 0.76rem;
-	border: 1px solid rgba(126, 200, 255, 0.16);
+	border: 1px solid #b0b0b0;
 }
 
 .sig-taskbar {
@@ -4214,16 +4311,16 @@ a:hover {
 	align-items: center;
 	gap: 0.25rem 0.35rem;
 		padding: 0.22rem 0.42rem;
-		background: #12161b;
+		background: #d4d4d4;
 	backdrop-filter: none;
-		border-top: 1px solid #323a44;
+		border-top: 1px solid #b0b0b0;
 	box-shadow: none;
 }
 
 .sig-taskbar-brand {
 	font-size: 0.66rem;
 	font-weight: 600;
-	color: #d7dde6;
+	color: #1c1c1c;
 	text-transform: none;
 	letter-spacing: 0;
 }
@@ -4237,7 +4334,7 @@ a:hover {
 
 .sig-taskbar-strip-secondary {
 		padding-left: 0.35rem;
-		border-left: 1px solid #323a44;
+		border-left: 1px solid #b0b0b0;
 }
 
 .sig-taskbar-strip-menus .sig-menu-trigger {
@@ -4245,10 +4342,10 @@ a:hover {
 	align-items: center;
 	justify-content: center;
 		padding: 0.14rem 0.44rem;
-		border-radius: 3px;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-	color: #d7dde6;
+		border-radius: 0;
+		background: #d4d4d4;
+		border: 1px solid #b0b0b0;
+	color: #1c1c1c;
 	font-size: 0.7rem;
 	font-weight: 500;
 	box-shadow: none;
@@ -4256,8 +4353,8 @@ a:hover {
 
 .sig-taskbar-strip-menus .sig-menu-trigger:hover,
 .sig-taskbar-strip-menus .sig-menu.open .sig-menu-trigger {
-	background: rgba(36, 42, 50, 0.98);
-	color: #edf1f6;
+	background: #c4c4c4;
+	color: #1c1c1c;
 	text-decoration: none;
 }
 
@@ -4271,10 +4368,10 @@ a:hover {
 	align-items: center;
 	justify-content: center;
 		padding: 0.14rem 0.42rem;
-		border-radius: 3px;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-	color: #d7dde6;
+		border-radius: 0;
+		background: #d4d4d4;
+		border: 1px solid #b0b0b0;
+	color: #1c1c1c;
 	font-size: 0.7rem;
 	white-space: nowrap;
 	box-shadow: none;
@@ -4285,20 +4382,20 @@ a:hover {
 }
 
 .sig-taskbar-button.open {
-	background: rgba(126, 200, 255, 0.08);
-	border-color: rgba(126, 200, 255, 0.16);
+	background: #c4c4c4;
+	border-color: #b0b0b0;
 }
 
 .sig-taskbar-button.active {
-	background: rgba(126, 200, 255, 0.14);
-	border-color: rgba(126, 200, 255, 0.24);
-	color: #edf1f6;
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 	font-weight: 600;
 }
 
 .sig-taskbar-button:hover {
 	text-decoration: none;
-	background: rgba(36, 42, 50, 0.98);
+	background: #c4c4c4;
 }
 
 .sig-taskbar-status {
@@ -4314,15 +4411,15 @@ a:hover {
 
 .sig-taskbar-session {
 	font-weight: 600;
-	color: #d7dde6;
+	color: #1c1c1c;
 }
 
 .sig-taskbar-note {
 	padding: 0.18rem 0.5rem;
-	border-radius: 999px;
-	background: rgba(126, 200, 255, 0.08);
-	color: #dce5ef;
-	border: 1px solid rgba(126, 200, 255, 0.16);
+	border-radius: 0;
+	background: #e8e8e8;
+	color: #1c1c1c;
+	border: 1px solid #b0b0b0;
 }
 
 .wa-toolbar {
@@ -4333,9 +4430,9 @@ a:hover {
 	bottom: 5rem !important;
 	max-width: calc(100vw - 2rem);
 	z-index: 2300 !important;
-		border-radius: 3px;
-		border: 1px solid #323a44;
-		background: #161b21;
+		border-radius: 0;
+		border: 1px solid #b0b0b0;
+		background: #f5f5f5;
 	box-shadow: none;
 }
 
@@ -4355,16 +4452,16 @@ a:hover {
 	min-height: 18rem;
 	max-height: calc(100vh - 5.5rem);
 	height: min(32rem, calc(68vh - 1rem));
-		background: #161b21;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 		box-shadow: none;
 	backdrop-filter: none;
 	overflow-x: auto;
 	overflow-y: scroll;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(137, 180, 250, 0.55) rgba(17, 17, 27, 0.42);
+	scrollbar-color: #a0a0a0 #e0e0e0;
 	resize: both;
 	display: flex;
 	flex-direction: column;
@@ -4376,7 +4473,7 @@ a:hover {
 }
 
 .sig-floating-window.sig-window-active {
-		border-color: rgba(126, 200, 255, 0.42);
+		border-color: #1874CD;
 		box-shadow: none;
 }
 
@@ -4387,8 +4484,8 @@ a:hover {
 		gap: 0.32rem;
 		padding: 0 0.42rem;
 		height: 24px;
-		background: #14181d;
-		border-bottom: 1px solid #323a44;
+		background: #d4d4d4;
+		border-bottom: 1px solid #b0b0b0;
 	box-shadow: none;
 	color: var(--sig-text);
 	cursor: grab;
@@ -4399,7 +4496,7 @@ a:hover {
 		font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0;
-	color: #e5e9f0;
+	color: #1c1c1c;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -4426,33 +4523,21 @@ a:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-		width: 10px;
-		height: 10px;
-	padding: 0;
-	border-radius: 999px;
-		border: 1px solid rgba(20, 23, 28, 0.35);
-	color: transparent;
-	font-size: 0;
-	line-height: 0;
+		padding: 0.1rem 0.38rem;
+		height: 18px;
+	border-radius: 0;
+		border: 1px solid #b0b0b0;
+	background: #d4d4d4;
+	color: #1c1c1c;
+	font-size: 9px;
+	line-height: 1;
 	cursor: pointer;
 	box-shadow: none;
 }
 
 .sig-window-control:hover {
 	text-decoration: none;
-	filter: brightness(1.06);
-}
-
-.sig-window-control.close {
-	background: rgba(220, 94, 101, 0.88);
-}
-
-.sig-window-control.collapse {
-	background: rgba(214, 179, 88, 0.88);
-}
-
-.sig-window-control.expand {
-	background: rgba(126, 179, 100, 0.88);
+	background: #c4c4c4;
 }
 
 .sig-window-body {
@@ -4463,11 +4548,11 @@ a:hover {
 	overflow-y: scroll;
 	display: flex;
 	flex-direction: column;
-		background: #161b21;
+		background: #ffffff;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(137, 180, 250, 0.55) rgba(17, 17, 27, 0.42);
+	scrollbar-color: #a0a0a0 #e0e0e0;
 }
 
 .sig-window-body > * {
@@ -4503,9 +4588,9 @@ a:hover {
 }
 
 .sig-session-panel {
-		background: #1a1f26;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 		padding: 0.42rem 0.48rem;
 	box-shadow: none;
 }
@@ -4539,9 +4624,9 @@ a:hover {
 .sig-source-window,
 .sig-debugger-panel {
 		position: relative;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 		padding: 0.42rem 0.48rem;
 		box-shadow: none;
 }
@@ -4583,7 +4668,7 @@ a:hover {
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(137, 180, 250, 0.55) rgba(17, 17, 27, 0.42);
+	scrollbar-color: #a0a0a0 #e0e0e0;
 }
 
 .slb-wrap {
@@ -4631,9 +4716,9 @@ a:hover {
 .exp-toolbar,
 .exp-pane {
 		position: relative;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 		box-shadow: none;
 }
 
@@ -4659,7 +4744,7 @@ a:hover {
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #8f9aaa;
+	color: #555555;
 }
 
 .exp-toolbar-value,
@@ -4668,10 +4753,10 @@ a:hover {
 	align-items: center;
 	min-height: 1.9rem;
 	padding: 0.18rem 0.42rem;
-	border: 1px solid rgba(56, 62, 72, 0.92);
-	border-radius: 4px;
-	background: rgba(21, 25, 31, 0.98);
-	color: #eef6ff;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
+	background: #ffffff;
+	color: #1c1c1c;
 	min-width: 0;
 }
 
@@ -4679,16 +4764,16 @@ a:hover {
 		width: 100%;
 		min-height: 1.95rem;
 		padding: 0.28rem 2rem 0.28rem 0.55rem;
-		background: #171c22;
-		color: #eef6ff;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #ffffff;
+		color: #1c1c1c;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 		font: inherit;
 		appearance: none;
 		-webkit-appearance: none;
 		background-image:
-			linear-gradient(45deg, transparent 50%, #8fb4fa 50%),
-			linear-gradient(135deg, #8fb4fa 50%, transparent 50%);
+			linear-gradient(45deg, transparent 50%, #555555 50%),
+			linear-gradient(135deg, #555555 50%, transparent 50%);
 		background-position:
 			calc(100% - 1rem) 50%,
 			calc(100% - 0.7rem) 50%;
@@ -4720,9 +4805,9 @@ a:hover {
 		flex-direction: column;
 		gap: 0.35rem;
 		padding: 0.35rem;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-		border-radius: 3px;
+		background: #f5f5f5;
+		border: 1px solid #b0b0b0;
+		border-radius: 0;
 }
 
 .inspector-section {
@@ -4758,9 +4843,9 @@ a:hover {
 	overflow-x: auto;
 	overflow-y: scroll;
 	padding: 0.28rem 0.3rem;
-	background: #171c22;
-	border: 1px solid #323a44;
-	border-radius: 3px;
+	background: #ffffff;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
 }
 
 .exp-scroll-short {
@@ -4817,24 +4902,24 @@ a:hover {
 .exp-item {
 	display: block;
 	padding: 0.26rem 0.4rem;
-	border-radius: 4px;
+	border-radius: 0;
 	border: 1px solid transparent;
-	color: #d7dde6;
+	color: #1c1c1c;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
 .exp-item:hover {
-	background: rgba(36, 42, 50, 0.98);
-	color: #edf1f6;
+	background: #dce9f8;
+	color: #1c1c1c;
 	text-decoration: none;
 }
 
 .exp-item.selected {
-	background: rgba(126, 200, 255, 0.1);
-	border-color: rgba(126, 200, 255, 0.14);
-	color: #edf1f6;
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 	font-weight: 600;
 }
 
@@ -4856,36 +4941,36 @@ a:hover {
 }
 
 .exp-table tbody tr.exp-table-row {
-		background: rgba(24, 29, 36, 0.92);
-		border-bottom: 1px solid rgba(50, 58, 68, 0.92);
+		background: #ffffff;
+		border-bottom: 1px solid #d0d0d0;
 }
 
 .exp-table tbody tr.exp-table-row:nth-child(even) {
-		background: rgba(27, 33, 40, 0.94);
+		background: #f5f5f5;
 }
 
 .exp-table tbody tr.exp-table-row:hover {
-		background: rgba(45, 56, 69, 0.96);
+		background: #dce9f8;
 }
 
 .exp-table-key {
-		color: #9fb0c1;
+		color: #1c1c1c;
 		font-weight: 700;
 }
 
 .exp-table-value {
-		color: #eef6ff;
+		color: #1c1c1c;
 }
 
 .inspector-value-link {
-		color: #dbe4ee;
+		color: #1c1c1c;
 		text-decoration: none;
-		border-bottom: 1px solid rgba(126, 200, 255, 0.28);
+		border-bottom: 1px solid #1874CD;
 }
 
 .inspector-value-link:hover {
-		color: #eef6ff;
-		border-bottom-color: rgba(126, 200, 255, 0.65);
+		color: #1874CD;
+		border-bottom-color: #1874CD;
 }
 
 .sig-debugger-layout {
@@ -4924,8 +5009,9 @@ a:hover {
 }
 
 .sig-debugger-command.selected {
-	background: rgba(137, 180, 250, 0.18);
-	border-color: rgba(137, 180, 250, 0.36);
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 	font-weight: 700;
 }
 
@@ -4961,36 +5047,34 @@ a:hover {
 .sig-root {
 	display: block;
 	padding: 0.28rem 0.44rem;
-	border-radius: 4px;
+	border-radius: 0;
 	background: transparent;
 	border: 1px solid transparent;
-	color: #bcc5d1;
-	transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+	color: #1c1c1c;
 }
 
 .sig-browser-item:hover,
 .sig-root:hover {
-	background: rgba(34, 40, 48, 0.98);
-	color: #edf1f6;
+	background: #dce9f8;
+	color: #1c1c1c;
 	text-decoration: none;
-	transform: none;
 }
 
 .sig-browser-item.selected,
 .sig-root.selected {
-	background: rgba(126, 200, 255, 0.1);
-	border-color: rgba(126, 200, 255, 0.14);
-	color: #edf1f6;
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 	font-weight: 600;
 }
 
 .sig-window-note {
-		color: #aeb8c4;
+		color: #555555;
 		margin: 0;
 		padding: 0.34rem 0.4rem;
-		border-left: 1px solid rgba(126, 200, 255, 0.2);
-		border-radius: 3px;
-		background: #171c22;
+		border-left: 2px solid #1874CD;
+		border-radius: 0;
+		background: #eef4fc;
 	line-height: 1.45;
 }
 
@@ -5013,22 +5097,20 @@ a:hover {
 	justify-content: center;
 	margin: 0;
 		padding: 0.18rem 0.42rem;
-		border-radius: 3px;
-		background: #1a1f26;
-		border: 1px solid #323a44;
-	color: #d7dde6;
+		border-radius: 0;
+		background: #d4d4d4;
+		border: 1px solid #b0b0b0;
+	color: #1c1c1c;
 	font-size: 0.72rem;
 	font-weight: 500;
 	box-shadow: none;
-	transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .sig-action:hover,
 .sig-local-command:hover {
-	background: rgba(36, 42, 50, 0.98);
-	color: #edf1f6;
+	background: #c4c4c4;
+	color: #1c1c1c;
 	text-decoration: none;
-	transform: none;
 }
 
 .sig-table {
@@ -5042,20 +5124,20 @@ a:hover {
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #8f9aaa;
-	background: rgba(21, 25, 31, 0.98);
+	color: #555555;
+	background: #e8e8e8;
 }
 
 .sig-table th,
 .sig-table td {
-	border-top: 1px solid rgba(53, 59, 69, 0.96);
+	border-top: 1px solid #d0d0d0;
 	padding: 0.34rem 0.42rem;
 	text-align: left;
 	vertical-align: top;
 }
 
 .sig-table tr:hover td {
-	background: rgba(34, 40, 48, 0.72);
+	background: #dce9f8;
 }
 
 .sig-pre {
@@ -5073,7 +5155,7 @@ a:hover {
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable both-edges;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(137, 180, 250, 0.55) rgba(17, 17, 27, 0.42);
+	scrollbar-color: #a0a0a0 #e0e0e0;
 }
 
 .sig-window-body::-webkit-scrollbar,
@@ -5086,22 +5168,22 @@ a:hover {
 .sig-window-body::-webkit-scrollbar-track,
 .exp-wrap::-webkit-scrollbar-track,
 .sig-scroll-pane::-webkit-scrollbar-track {
-	background: rgba(17, 17, 27, 0.42);
-	border-radius: 999px;
+	background: #e0e0e0;
+	border-radius: 0;
 }
 
 .sig-window-body::-webkit-scrollbar-thumb,
 .exp-wrap::-webkit-scrollbar-thumb,
 .sig-scroll-pane::-webkit-scrollbar-thumb {
-	background: rgba(89, 106, 129, 0.92);
-	border: 2px solid rgba(17, 17, 27, 0.42);
-	border-radius: 999px;
+	background: #a0a0a0;
+	border: 2px solid #e0e0e0;
+	border-radius: 0;
 }
 
 .sig-window-body::-webkit-scrollbar-thumb:hover,
 .exp-wrap::-webkit-scrollbar-thumb:hover,
 .sig-scroll-pane::-webkit-scrollbar-thumb:hover {
-	background: rgba(109, 128, 153, 0.96);
+	background: #888888;
 }
 
 .sig-root-pane,
@@ -5155,9 +5237,9 @@ a:hover {
 .sig-transcript-pane,
 .sig-debugger-pane,
 .sig-debugger-frame-list {
-	background: rgba(17, 20, 25, 0.98);
-	border: 1px solid rgba(53, 59, 69, 0.96);
-	border-radius: 4px;
+	background: #ffffff;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
 	padding: 0.34rem 0.4rem;
 	box-shadow: none;
 }
@@ -5170,9 +5252,9 @@ a:hover {
 	max-height: 24rem;
 	min-height: 14rem;
 	padding: 0.4rem 0;
-	border: 1px solid rgba(69, 71, 90, 0.92);
-	border-radius: 8px;
-	background: rgba(17, 17, 27, 0.62);
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
+	background: #ffffff;
 	overflow-y: scroll;
 	overflow-x: auto;
 }
@@ -5192,15 +5274,15 @@ a:hover {
 }
 
 .sig-debugger-source-line.current {
-	background: rgba(137, 180, 250, 0.18);
-	border-left-color: rgba(137, 180, 250, 0.98);
-	box-shadow: inset 0 0 0 1px rgba(137, 180, 250, 0.12);
+	background: #dce9f8;
+	border-left-color: #1874CD;
+	box-shadow: none;
 	scroll-margin-block: 1rem;
 }
 
 .sig-debugger-source-line.current .sig-debugger-source-gutter,
 .sig-debugger-source-line.current .sig-debugger-source-code {
-	color: #eef6ff;
+	color: #1c1c1c;
 }
 
 .sig-debugger-source-gutter {
@@ -5221,9 +5303,9 @@ a:hover {
 	width: 0;
 	height: 1.05em;
 	margin-right: 0.14rem;
-	border-left: 2px solid #f9e2af;
+	border-left: 2px solid #1874CD;
 	vertical-align: -0.12em;
-	box-shadow: 0 0 0 1px rgba(249, 226, 175, 0.18);
+	box-shadow: none;
 }
 
 .sig-debugger-diagnostic-grid {
@@ -5252,21 +5334,22 @@ a:hover {
 	gap: 0.55rem;
 	align-items: start;
 	padding: 0.55rem 0.65rem;
-	border-radius: 8px;
-	background: rgba(17, 17, 27, 0.55);
-	border: 1px solid rgba(49, 50, 68, 0.92);
+	border-radius: 0;
+	background: #ffffff;
+	border: 1px solid #d0d0d0;
 	color: var(--sig-text);
 }
 
 .sig-debugger-frame:hover {
-	background: rgba(49, 50, 68, 0.96);
-	color: #eef6ff;
+	background: #dce9f8;
+	color: #1c1c1c;
 	text-decoration: none;
 }
 
 .sig-debugger-frame.selected {
-	background: rgba(137, 180, 250, 0.14);
-	border-color: rgba(137, 180, 250, 0.34);
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 	font-weight: 700;
 }
 
@@ -5285,10 +5368,10 @@ a:hover {
 	display: none;
 	min-width: 13rem;
 	padding: 0.45rem;
-	border-radius: 5px;
-	background: rgba(18, 21, 26, 0.99);
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+	border-radius: 0;
+	background: #f5f5f5;
+	border: 1px solid #b0b0b0;
+	box-shadow: none;
 	backdrop-filter: none;
 	z-index: 2500;
 }
@@ -5296,7 +5379,7 @@ a:hover {
 .sig-context-group + .sig-context-group {
 	margin-top: 0.8rem;
 	padding-top: 0.8rem;
-	border-top: 1px solid rgba(56, 62, 72, 0.92);
+	border-top: 1px solid #d0d0d0;
 }
 
 .sig-context-title {
@@ -5313,14 +5396,14 @@ a:hover {
 	display: block;
 	margin: 0 0 0.35rem;
 	padding: 0.3rem 0.4rem;
-	border-radius: 4px;
-	color: #d7dde6;
+	border-radius: 0;
+	color: #1c1c1c;
 }
 
 .sig-context-menu .sig-action:hover,
 .sig-context-menu .sig-local-command:hover {
-	background: rgba(36, 42, 50, 0.98);
-	color: #edf1f6;
+	background: #1874CD;
+	color: #ffffff;
 	text-decoration: none;
 }
 
@@ -5349,9 +5432,9 @@ a:hover {
 
 .sig-transcript-entry {
 	padding: 0.34rem 0.44rem;
-	border-radius: 4px;
-	background: rgba(17, 20, 25, 0.98);
-	border: 1px solid rgba(53, 59, 69, 0.96);
+	border-radius: 0;
+	background: #ffffff;
+	border: 1px solid #d0d0d0;
 	box-shadow: none;
 	font-size: 0.8rem;
 	line-height: 1.38;
@@ -5373,20 +5456,20 @@ a:hover {
 	width: 100%;
 	min-height: 15rem;
 	padding: 0.9rem;
-	border-radius: 4px;
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	background: rgba(16, 19, 23, 0.98);
+	border-radius: 0;
+	border: 1px solid #b0b0b0;
+	background: #ffffff;
 	box-sizing: border-box;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 	font-size: 0.86rem;
 	line-height: 1.5;
-	color: #dfe5ec;
+	color: #000000;
 	box-shadow: none;
 }
 
 .sig-workspace-editor:focus {
 	outline: none;
-	border-color: rgba(126, 200, 255, 0.38);
+	border-color: #1874CD;
 	box-shadow: none;
 }
 
@@ -5397,30 +5480,30 @@ a:hover {
 }
 
 .sig-workspace-button {
-	border: 1px solid rgba(126, 200, 255, 0.2);
+	border: 1px solid #b0b0b0;
 	padding: 0.3rem 0.62rem;
-	border-radius: 4px;
-	background: rgba(126, 200, 255, 0.12);
-	color: #edf1f6;
+	border-radius: 0;
+	background: #d4d4d4;
+	color: #1c1c1c;
 	font-size: 0.8rem;
 	cursor: pointer;
 	font-weight: 600;
 }
 
 .sig-workspace-button:hover {
-	background: rgba(126, 200, 255, 0.18);
+	background: #c4c4c4;
 }
 
 .sig-workspace-button.sig-workspace-button-secondary {
-	background: rgba(26, 30, 36, 0.98);
-	border-color: rgba(56, 62, 72, 0.96);
-	color: #d7dde6;
+	background: #e8e8e8;
+	border-color: #b0b0b0;
+	color: #1c1c1c;
 }
 
 .sig-workspace-output {
-	background: rgba(24, 28, 34, 0.98);
-	border: 1px solid rgba(53, 59, 69, 0.96);
-	border-radius: 5px;
+	background: #f5f5f5;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
 	padding: 0.8rem;
 	box-shadow: none;
 }
@@ -5441,7 +5524,7 @@ a:hover {
 .sig-workspace-output > h3 {
 	margin: 0 0 0.75rem;
 	padding-bottom: 0.45rem;
-	border-bottom: 1px solid rgba(69, 71, 90, 0.72);
+	border-bottom: 1px solid #b0b0b0;
 	font-size: 0.68rem;
 	font-weight: 700;
 	letter-spacing: 0.08em;
@@ -5472,17 +5555,17 @@ a:hover {
 .sig-session-panel dd {
 	margin: 0;
 	min-width: 0;
-	color: #eef6ff;
+	color: #1c1c1c;
 	word-break: break-word;
 }
 
 .sig-window-body input[type="text"],
 .sig-window-body textarea,
 .sig-window-body select {
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	border-radius: 4px;
-	background: rgba(16, 19, 23, 0.98);
-	color: #dfe5ec;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
+	background: #ffffff;
+	color: #1c1c1c;
 	box-shadow: none;
 }
 
@@ -5490,13 +5573,13 @@ a:hover {
 .sig-window-body textarea:focus,
 .sig-window-body select:focus {
 	outline: none;
-	border-color: rgba(126, 200, 255, 0.38);
+	border-color: #1874CD;
 	box-shadow: none;
 }
 
 .sig-window-body input[type="text"]::placeholder,
 .sig-window-body textarea::placeholder {
-	color: #6c7086;
+	color: #888888;
 }
 
 button.btn,
@@ -5505,10 +5588,10 @@ button.btn,
 	align-items: center;
 	justify-content: center;
 	padding: 0.26rem 0.68rem;
-	border-radius: 4px;
-	border: 1px solid rgba(126, 200, 255, 0.2);
-	background: rgba(126, 200, 255, 0.12);
-	color: #edf1f6;
+	border-radius: 0;
+	border: 1px solid #b0b0b0;
+	background: #d4d4d4;
+	color: #1c1c1c;
 	font-size: 11px;
 	font-weight: 600;
 	cursor: pointer;
@@ -5518,7 +5601,7 @@ button.btn,
 
 button.btn:hover,
 .btn:hover {
-	background: rgba(126, 200, 255, 0.18);
+	background: #c4c4c4;
 	text-decoration: none;
 }
 
@@ -5528,10 +5611,10 @@ button.btn-ghost,
 	align-items: center;
 	justify-content: center;
 	padding: 0.26rem 0.62rem;
-	border-radius: 4px;
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	background: rgba(26, 30, 36, 0.98);
-	color: #d7dde6;
+	border-radius: 0;
+	border: 1px solid #b0b0b0;
+	background: #e8e8e8;
+	color: #1c1c1c;
 	font-size: 11px;
 	font-weight: 500;
 	cursor: pointer;
@@ -5541,7 +5624,7 @@ button.btn-ghost,
 
 button.btn-ghost:hover,
 .btn-ghost:hover {
-	background: rgba(36, 42, 50, 0.98);
+	background: #d4d4d4;
 	text-decoration: none;
 }
 
@@ -5551,10 +5634,10 @@ button.btn-tx,
 	align-items: center;
 	justify-content: center;
 	padding: 0.26rem 0.68rem;
-	border-radius: 4px;
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	background: rgba(26, 30, 36, 0.98);
-	color: #d7dde6;
+	border-radius: 0;
+	border: 1px solid #b0b0b0;
+	background: #e8e8e8;
+	color: #1c1c1c;
 	font-size: 11px;
 	font-weight: 500;
 	cursor: pointer;
@@ -5563,14 +5646,14 @@ button.btn-tx,
 
 button.btn-tx:hover,
 .btn-tx:hover {
-	background: rgba(36, 42, 50, 0.98);
+	background: #d4d4d4;
 	text-decoration: none;
 }
 
 .btn-tx-active {
-	background: rgba(126, 200, 255, 0.12);
-	border-color: rgba(126, 200, 255, 0.2);
-	color: #edf1f6;
+	background: #1874CD;
+	border-color: #1874CD;
+	color: #ffffff;
 }
 
 .btn-dbg {
@@ -5578,10 +5661,10 @@ button.btn-tx:hover,
 	align-items: center;
 	justify-content: center;
 	padding: 0.34rem 0.72rem;
-	border-radius: 4px;
-	border: 1px solid rgba(126, 200, 255, 0.18);
-	background: rgba(126, 200, 255, 0.1);
-	color: #edf1f6;
+	border-radius: 0;
+	border: 1px solid #b0b0b0;
+	background: #d4d4d4;
+	color: #1c1c1c;
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
@@ -5591,7 +5674,7 @@ button.btn-tx:hover,
 }
 
 .btn-dbg:hover {
-	background: rgba(126, 200, 255, 0.16);
+	background: #c4c4c4;
 	text-decoration: none;
 }
 
@@ -5606,7 +5689,8 @@ button.btn-tx:hover,
 	height: 100%;
 	min-height: 0;
 	gap: 0;
-	background: rgba(20, 23, 28, 1);
+	position: relative;
+	background: #ffffff;
 	overflow-y: scroll;
 	overflow-x: hidden;
 	scrollbar-gutter: stable both-edges;
@@ -5625,9 +5709,9 @@ button.btn-tx:hover,
 	padding: 0.38rem 0.52rem;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 	font-size: 0.78rem;
-	color: #d7ddea;
-	background: rgba(20, 23, 28, 1);
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
+	color: #1c1c1c;
+	background: #ffffff;
+	border-bottom: 1px solid #d0d0d0;
 }
 
 .ws-entry {
@@ -5635,7 +5719,7 @@ button.btn-tx:hover,
 }
 
 .ws-code {
-	color: #cdd6f4;
+	color: #1c1c1c;
 	white-space: pre-wrap;
 	word-break: break-word;
 }
@@ -5643,14 +5727,14 @@ button.btn-tx:hover,
 .ws-result {
 	margin-top: 0.24rem;
 	padding: 0.2rem 0.42rem;
-	border-radius: 0.35rem;
-	background: #1a3a1a;
-	color: #a6e3a1;
+	border-radius: 0;
+	background: #e8f5e8;
+	color: #1a5c1a;
 }
 
 .ws-result.error {
-	background: #3a1a1a;
-	color: #f38ba8;
+	background: #fde8e8;
+	color: #aa0000;
 }
 
 .ws-result-text {
@@ -5659,11 +5743,11 @@ button.btn-tx:hover,
 }
 
 .ws-input-row {
-	border-top: 1px solid rgba(53, 59, 69, 0.96);
+	border-top: 1px solid #d0d0d0;
 	display: flex;
 	flex-direction: column;
 	flex-shrink: 0;
-	background: rgba(20, 23, 28, 1);
+	background: #ffffff;
 }
 
 .ws-code-area {
@@ -5671,8 +5755,8 @@ button.btn-tx:hover,
 	min-height: 6.5rem;
 	padding: 0.52rem;
 	border: none;
-	background: rgba(16, 19, 23, 0.98);
-	color: #dfe5ec;
+	background: #ffffff;
+	color: #000000;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 	font-size: 0.82rem;
 	line-height: 1.4;
@@ -5691,7 +5775,34 @@ button.btn-tx:hover,
 .ws-hint {
 	margin-left: auto;
 	font-size: 0.68rem;
-	color: #6c7086;
+	color: #777777;
+}
+
+.ws-context-menu {
+	display: none;
+	position: fixed;
+	z-index: 1200;
+	min-width: 10rem;
+	padding: 0.28rem;
+	border: 1px solid #4d5c76;
+	background: #1e232c;
+	box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.35);
+}
+
+.ws-context-menu .ws-context-action {
+	display: block;
+	width: 100%;
+	margin: 0;
+	border: none;
+	background: transparent;
+	color: #f3f6fb;
+	text-align: left;
+	padding: 0.38rem 0.52rem;
+}
+
+.ws-context-menu .ws-context-action:hover {
+	background: #2a73b9;
+	color: #ffffff;
 }
 
 .txbar {
@@ -5699,20 +5810,20 @@ button.btn-tx:hover,
 	align-items: center;
 	gap: 0.45rem;
 	padding: 0.45rem 0.75rem;
-	border-top: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-top: 1px solid #d0d0d0;
+	background: #f5f5f5;
 	flex-wrap: wrap;
 }
 
 .txbar span {
 	font-size: 0.72rem;
-	color: #6c7086;
+	color: #777777;
 }
 
 .tab-strip {
 	display: flex;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #e8e8e8;
 	flex-shrink: 0;
 	overflow-x: auto;
 }
@@ -5720,7 +5831,7 @@ button.btn-tx:hover,
 .tab-item {
 	padding: 5px 12px;
 	font-size: 11px;
-	color: #d7ddea;
+	color: #1c1c1c;
 	cursor: pointer;
 	border-bottom: 2px solid transparent;
 	margin-bottom: -1px;
@@ -5729,14 +5840,14 @@ button.btn-tx:hover,
 }
 
 .tab-item:hover {
-	color: #f5f8ff;
+	color: #1c1c1c;
 	text-decoration: none;
 }
 
 .tab-item.active {
-	color: #edf1f6;
-	border-bottom-color: rgba(126, 200, 255, 0.72);
-	background: rgba(126, 200, 255, 0.06);
+	color: #1c1c1c;
+	border-bottom-color: #1874CD;
+	background: #dce9f8;
 }
 
 .sig-debugger-shell {
@@ -5744,7 +5855,7 @@ button.btn-tx:hover,
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
-	background: rgba(20, 23, 28, 1);
+	background: #ffffff;
 	overflow-y: scroll;
 	overflow-x: hidden;
 	overscroll-behavior: contain;
@@ -5774,8 +5885,8 @@ button.btn-tx:hover,
 	flex-direction: column;
 	gap: 2px;
 	padding: 6px 8px;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #f5f5f5;
 	flex-shrink: 0;
 }
 
@@ -5789,11 +5900,11 @@ button.btn-tx:hover,
 }
 
 .dbg-summary-source {
-	color: #cdd6f4;
+	color: #1c1c1c;
 }
 
 .dbg-summary-error {
-	color: #f38ba8;
+	color: #aa0000;
 }
 
 .sig-debugger-frame-list {
@@ -5803,9 +5914,9 @@ button.btn-tx:hover,
 	height: 196px;
 	padding: 0;
 	border: none;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
+	border-bottom: 1px solid #d0d0d0;
 	border-radius: 0;
-	background: rgba(20, 23, 28, 1);
+	background: #ffffff;
 	overflow-y: auto;
 	overflow-x: auto;
 }
@@ -5842,32 +5953,32 @@ button.btn-tx:hover,
 }
 
 .dbg-frame-item:hover {
-	background: rgba(36, 42, 50, 0.98);
+	background: #dce9f8;
 	text-decoration: none;
 }
 
 .dbg-frame-item.active,
 .sig-debugger-frame.selected {
-	background: rgba(126, 200, 255, 0.12);
-	border-left-color: rgba(126, 200, 255, 0.72);
-	color: #edf1f6;
+	background: #1874CD;
+	border-left-color: #1874CD;
+	color: #ffffff;
 }
 
 .dbg-frame-icon {
 	width: 12px;
 	height: 12px;
-	border-radius: 999px;
+	border-radius: 0;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	font-size: 7px;
 	flex-shrink: 0;
-	background: #f9e2af;
-	color: #1e1e2e;
+	background: #1874CD;
+	color: #ffffff;
 }
 
 .dbg-frame-icon.ruby {
-	background: #f38ba8;
+	background: #aa0000;
 }
 
 .sig-debugger-utility-bar {
@@ -5876,8 +5987,8 @@ button.btn-tx:hover,
 	flex-wrap: wrap;
 	gap: 0.3rem;
 	padding: 0.45rem 0.6rem;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #f5f5f5;
 }
 
 .sig-debugger-utility-bar .sig-action {
@@ -5892,8 +6003,8 @@ button.btn-tx:hover,
 
 .sig-debugger-status-row {
 	padding: 0.35rem 0.65rem;
-	border-top: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-top: 1px solid #d0d0d0;
+	background: #f5f5f5;
 }
 
 .dbg-action-bar {
@@ -5901,8 +6012,8 @@ button.btn-tx:hover,
 	align-items: stretch;
 	gap: 0;
 	padding: 0;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #e8e8e8;
 	flex-wrap: wrap;
 }
 
@@ -5919,9 +6030,9 @@ button.btn-tx:hover,
 	align-items: center;
 	gap: 8px;
 	padding: 4px 8px;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
-	color: #d7ecff;
+	border-bottom: 1px solid #d0d0d0;
+	background: #f5f5f5;
+	color: #1c1c1c;
 	font-size: 10px;
 	font-family: monospace;
 }
@@ -5929,8 +6040,8 @@ button.btn-tx:hover,
 .dbg-source-code {
 	flex: 1;
 	min-height: 0;
-	background: rgba(18, 21, 26, 1);
-	color: #dfe5ec;
+	background: #ffffff;
+	color: #000000;
 	padding: 6px 8px;
 	overflow: auto;
 	white-space: pre;
@@ -5943,21 +6054,20 @@ button.btn-tx:hover,
 	gap: 10px;
 	padding: 0 4px;
 	border-left: 3px solid transparent;
-	transition: background 120ms ease, border-color 120ms ease;
 }
 
 .dbg-source-line.active {
-	background: rgba(126, 200, 255, 0.08);
-	border-left-color: rgba(126, 200, 255, 0.72);
+	background: #dce9f8;
+	border-left-color: #1874CD;
 }
 
 .dbg-source-marker {
-	color: #9ad6ff;
+	color: #1874CD;
 	min-width: 28px;
 	text-align: center;
 	user-select: none;
 	flex-shrink: 0;
-	opacity: 0.15;
+	opacity: 0.3;
 }
 
 .dbg-step-cursor,
@@ -5967,15 +6077,15 @@ button.btn-tx:hover,
 	justify-content: center;
 	min-width: 22px;
 	height: 16px;
-	border-radius: 999px;
+	border-radius: 0;
 	font-size: 10px;
 	line-height: 1;
 	font-weight: 700;
 }
 
 .dbg-step-cursor {
-	background: rgba(126, 200, 255, 0.18);
-	color: #d8ecff;
+	background: #1874CD;
+	color: #ffffff;
 	box-shadow: none;
 }
 
@@ -5990,7 +6100,7 @@ button.btn-tx:hover,
 }
 
 .dbg-source-lno {
-	color: #9fa9bc;
+	color: #777777;
 	min-width: 26px;
 	text-align: right;
 	user-select: none;
@@ -6010,19 +6120,19 @@ button.btn-tx:hover,
 	align-items: center;
 	gap: 0.45rem;
 	padding: 0.3rem 0.65rem;
-	border-top: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-top: 1px solid #d0d0d0;
+	background: #f5f5f5;
 	flex-shrink: 0;
 }
 
 .dbg-self-label {
-	color: #6c7086;
+	color: #777777;
 	font-size: 10px;
 }
 
 .dbg-self-val {
 	font-family: monospace;
-	color: #cba6f7;
+	color: #1c1c1c;
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -6034,7 +6144,7 @@ button.btn-tx:hover,
 
 .dbg-var-val {
 	font-family: monospace;
-	color: #a6e3a1;
+	color: #1a5c1a;
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -6049,7 +6159,7 @@ button.btn-tx:hover,
 	background: transparent;
 	border-left: none;
 	border-radius: 0;
-	color: #7ec8ff;
+	color: #1874CD;
 	font-weight: 700;
 	box-shadow: none;
 	text-shadow: none;
@@ -6073,12 +6183,12 @@ button.btn-tx:hover,
 }
 
 .tls-key {
-	color: #f5c2e7;
+	color: #1c1c1c;
 	min-width: 7rem;
 }
 
 .tls-val {
-	color: #a6e3a1;
+	color: #1a5c1a;
 	min-width: 0;
 }
 
@@ -6087,7 +6197,7 @@ button.btn-tx:hover,
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
-	background: rgba(20, 23, 28, 1);
+	background: #ffffff;
 	overflow-y: scroll;
 	overflow-x: hidden;
 	scrollbar-gutter: stable both-edges;
@@ -6099,8 +6209,8 @@ button.btn-tx:hover,
 	gap: 0.28rem;
 	flex-wrap: wrap;
 	padding: 0.28rem 0.42rem;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #e8e8e8;
 	flex-shrink: 0;
 }
 
@@ -6112,7 +6222,7 @@ button.btn-tx:hover,
 	display: inline-flex;
 	align-items: center;
 	gap: 0.24rem;
-	color: #e4e9f2;
+	color: #1c1c1c;
 	font-size: 0.72rem;
 	white-space: nowrap;
 }
@@ -6126,7 +6236,7 @@ button.btn-tx:hover,
 	grid-template-columns: minmax(9rem, 12rem) 0.45rem minmax(12rem, 1fr) 0.45rem minmax(10rem, 12rem) 0.45rem minmax(12rem, 1fr);
 	min-height: 11.5rem;
 	height: 11.5rem;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
+	border-bottom: 1px solid #d0d0d0;
 	flex-shrink: 0;
 }
 
@@ -6136,7 +6246,7 @@ button.btn-tx:hover,
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
-	border-right: 1px solid rgba(53, 59, 69, 0.96);
+	border-right: 1px solid #d0d0d0;
 }
 
 .cb-pane:last-child {
@@ -6145,9 +6255,9 @@ button.btn-tx:hover,
 
 .cb-splitter {
 	position: relative;
-	background: rgba(20, 23, 28, 1);
-	border-right: 1px solid rgba(53, 59, 69, 0.96);
-	border-left: 1px solid rgba(53, 59, 69, 0.96);
+	background: #e8e8e8;
+	border-right: 1px solid #d0d0d0;
+	border-left: 1px solid #d0d0d0;
 }
 
 .cb-splitter::after {
@@ -6158,33 +6268,33 @@ button.btn-tx:hover,
 	transform: translate(-50%, -50%);
 	width: 2px;
 	height: 1.75rem;
-	border-radius: 999px;
-	background: #4a5260;
+	border-radius: 0;
+	background: #a0a0a0;
 }
 
 .cb-pane-label {
 	padding: 0.24rem 0.38rem;
-	background: rgba(20, 23, 28, 1);
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
+	background: #e8e8e8;
+	border-bottom: 1px solid #d0d0d0;
 	font-size: 0.62rem;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	color: #d7ddea;
+	color: #555555;
 }
 
 .cb-filter-wrap {
 	padding: 0.24rem 0.3rem;
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
-	background: rgba(20, 23, 28, 1);
+	border-bottom: 1px solid #d0d0d0;
+	background: #f5f5f5;
 }
 
 .cb-filter {
 	width: 100%;
 	box-sizing: border-box;
-	border: 1px solid rgba(56, 62, 72, 0.96);
-	border-radius: 4px;
-	background: rgba(16, 19, 23, 0.98);
-	color: #dfe5ec;
+	border: 1px solid #b0b0b0;
+	border-radius: 0;
+	background: #ffffff;
+	color: #1c1c1c;
 	font-size: 0.68rem;
 	padding: 0.26rem 0.36rem;
 }
@@ -6211,7 +6321,7 @@ button.btn-tx:hover,
 	display: block;
 	padding: 0.24rem 0.38rem;
 	font-size: 0.72rem;
-	color: #d7dde6;
+	color: #1c1c1c;
 	border-left: 3px solid transparent;
 	white-space: nowrap;
 	overflow: hidden;
@@ -6219,14 +6329,14 @@ button.btn-tx:hover,
 }
 
 .cb-item:hover {
-	background: rgba(36, 42, 50, 0.98);
+	background: #dce9f8;
 	text-decoration: none;
 }
 
 .cb-item.selected {
-	border-left-color: rgba(126, 200, 255, 0.72);
-	background: rgba(126, 200, 255, 0.1);
-	color: #edf1f6;
+	border-left-color: #1874CD;
+	background: #1874CD;
+	color: #ffffff;
 }
 
 .cb-source-wrap {
@@ -6248,8 +6358,8 @@ button.btn-tx:hover,
 	align-items: center;
 	justify-content: space-between;
 	padding: 0.26rem 0.42rem;
-	background: rgba(20, 23, 28, 1);
-	border-bottom: 1px solid rgba(53, 59, 69, 0.96);
+	background: #e8e8e8;
+	border-bottom: 1px solid #d0d0d0;
 	flex-shrink: 0;
 }
 
@@ -6268,7 +6378,7 @@ button.btn-tx:hover,
 
 .cb-source-note {
 	font-size: 0.68rem;
-	color: #8f9aaa;
+	color: #555555;
 }
 
 .cb-source-btn {
@@ -6280,7 +6390,7 @@ button.btn-tx:hover,
 	flex: 1;
 	min-height: 0;
 	padding: 0.38rem 0.46rem;
-	background: rgba(18, 21, 26, 1);
+	background: #ffffff;
 	display: flex;
 }
 
@@ -6291,7 +6401,7 @@ button.btn-tx:hover,
 	padding: 0;
 	border: none;
 	background: transparent;
-	color: #dfe5ec;
+	color: #000000;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 	font-size: 0.78rem;
 	line-height: 1.42;
@@ -6300,20 +6410,20 @@ button.btn-tx:hover,
 }
 
 .cb-source-editor::placeholder {
-	color: #7f8997;
+	color: #888888;
 }
 
 .cb-status {
 	padding: 0.38rem 0.65rem;
-	border-top: 1px solid #313244;
-	background: #181825;
-	color: #a6adc8;
+	border-top: 1px solid #d0d0d0;
+	background: #e8e8e8;
+	color: #555555;
 	font-size: 0.72rem;
 	flex-shrink: 0;
 }
 
-@media (max-width: 1100px) {
-	.sig-floating-window {
+@media (max-width: 760px) {
+	.sig-floating-window:not(.sig-window-manual-position) {
 		position: relative;
 		top: auto !important;
 		left: auto !important;
@@ -6397,7 +6507,7 @@ SigExplorerApplication >> workspaceDebugIt [
 
 { #category : 'actions' }
 SigExplorerApplication >> workspaceDebugItForWindow: aWindow [
-	| hadFailure |
+	| hadFailure sessionId snapshot |
 	self
 		workspaceResultText: (self gateway workspaceDebugIt: (self workspaceSourceTextForWindow: aWindow))
 		forWindow: aWindow.
@@ -6407,9 +6517,15 @@ SigExplorerApplication >> workspaceDebugItForWindow: aWindow [
 			self showDebuggerForLastError.
 			self setStatusMessage: 'Workspace debug opened the debugger' ]
 		ifFalse: [
-			self refreshBaseDebuggerStateFromGateway.
+			sessionId := self gateway lastDebugSessionId.
+			sessionId
+				ifNil: [ self refreshBaseDebuggerStateFromGateway ]
+				ifNotNil: [
+					snapshot := self gateway debuggerSnapshotForSessionId: sessionId.
+					self applyDebuggerSnapshot: snapshot toState: self debuggerState.
+					self selectPreferredDebuggerFrameInState: self debuggerState ].
 			self requestWindowShow: 'sig-window-debugger'.
-			self setStatusMessage: 'Workspace debug run completed' ].
+			self setStatusMessage: 'Workspace debug opened the debugger' ].
 	self
 		addTranscriptLine: 'Workspace debug output: ',
 			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))

@@ -11,7 +11,8 @@ Class {
 { #category : 'running' }
 SigExplorerApplicationTest >> setUp [
 	super setUp.
-	application := SigExplorerApplication new
+	application := SigExplorerApplication new.
+	application gateway: SigGemStoneGateway new
 ]
 
 { #category : 'tests' }
@@ -313,6 +314,19 @@ SigExplorerApplicationTest >> testWorkspaceDebugItFailureShowsBaseDebuggerWindow
 ]
 
 { #category : 'tests' }
+SigExplorerApplicationTest >> testWorkspaceDebugItSuccessShowsBaseDebuggerWindow [
+	application workspaceSourceText: '1 + 2'.
+
+	application workspaceDebugIt.
+
+	self assert: (application debuggerState at: #debugSessionId) notNil.
+	self assert: (application debuggerState at: #frames) size > 0.
+	self assert: (application debuggerState at: #canRestart).
+	self assert: (application debuggerState at: #canStepInto).
+	self assert: application consumePendingWindowIdToShow equals: 'sig-window-debugger'
+]
+
+{ #category : 'tests' }
 SigExplorerApplicationTest >> testWorkspaceInspectItShowsInspectorWindow [
 	application workspaceSourceText: '1 + 2'.
 
@@ -420,7 +434,9 @@ SigExplorerApplicationTest >> testWorkspaceRenderUsesClassicButtons [
 	self assert: (source includesString: 'with: ''Inspect it''').
 	self assert: (source includesString: 'with: ''Debug it''').
 	self assert: (source includesString: 'workspaceDoItForWindow:').
-	self assert: (source includesString: 'workspaceSourceTextForWindow:')
+	self assert: (source includesString: 'workspaceSourceTextForWindow:').
+	self assert: (source includesString: 'data-workspace-action').
+	self assert: (source includesString: 'data-workspace-menu-action')
 ]
 
 { #category : 'tests' }
@@ -546,7 +562,7 @@ SigExplorerApplicationTest >> testDebuggerSourceCursorLocationUsesStepOffsetInsi
 ]
 
 { #category : 'tests' }
-SigExplorerApplicationTest >> testDebuggerExecutedCodeAdvancesVisibleStepToNextExecutableLineWhenOffsetsRepeatOnSameLine [
+SigExplorerApplicationTest >> testDebuggerExecutedCodeKeepsCurrentStepOffsetWhenOffsetsRepeatOnSameLine [
 	| frame |
 	frame := Dictionary new
 		at: #className put: 'SigWorkspaceEvaluator';
@@ -557,9 +573,26 @@ SigExplorerApplicationTest >> testDebuggerExecutedCodeAdvancesVisibleStepToNextE
 		at: #sourceText put: '1 + 2.', String lf, '', String lf, '1+1.', String lf, '', String lf, '1/0';
 		yourself.
 
-	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(3 1).
-	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 3.
-	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @2 line 3'
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 3).
+	self assert: (application debuggerFrameSourceLineNumberFor: frame) equals: 1.
+	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @2 line 1'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerExecutedCodeInitialStepStaysAtSourceStart [
+	| frame |
+	frame := Dictionary new
+		at: #className put: 'SigWorkspaceEvaluator';
+		at: #selectorName put: 'sigWorkspaceABC123';
+		at: #description put: '[] in SigWorkspaceEvaluator >> sigWorkspaceABC123';
+		at: #quickStepPoint put: 1;
+		at: #sourceOffsets put: #(1 3 10);
+		at: #sourceText put: '1 + 2.', String lf, '3 + 4';
+		yourself.
+
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 1).
+	self assert: (application debuggerResolvedSourceLocationFor: frame) equals: #(1 1).
+	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @1 line 1'
 ]
 
 { #category : 'tests' }
@@ -784,6 +817,8 @@ SigExplorerApplicationTest >> testDesktopScriptSupportsRemoteDesktopUpdates [
 	self assert: (script includesString: 'if (current && !replacement) {').
 	self assert: (script includesString: 'sig-window-maximized').
 	self assert: (script includesString: 'runtime.newlyVisibleWindowIds').
+	self assert: (script includesString: 'serverWantsVisible = win.style.display !== ''none''').
+	self assert: (script includesString: 'forcedVisibleIds.push(win.id)').
 	self assert: (script includesString: 'scrollIntoView({ block: ''nearest'' })')
 ]
 
@@ -912,4 +947,89 @@ SigExplorerApplicationTest >> testRenderFloatingWindowUsesMacStyleWindowControls
 	self assert: (source includesString: 'data-sig-window-action').
 	self assert: (source includesString: 'Minimise window').
 	self assert: (source includesString: 'aSubtitle isEmpty ifFalse:')
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testOpenAdditionalBrowserWindowCreatesSigBrowserWindow [
+	| window |
+	application openAdditionalWindowOfKind: #browser.
+	window := application auxiliaryWindows first.
+
+	self assert: (window isKindOf: SigBrowserWindow).
+	self assert: window selectedDictionaryName equals: #UserGlobals.
+	self assert: window selectedClassName isNil
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testBrowserWindowSelectDictionaryNameClearsCascade [
+	| window |
+	window := application newAuxiliaryWindowForKind: #browser.
+	window selectedClassName: 'Object'.
+	window selectedProtocolName: 'accessing'.
+	window selectedSelector: 'printString'.
+
+	window selectedDictionaryName: #Globals.
+
+	self assert: window selectedDictionaryName equals: #Globals.
+	self assert: window selectedClassName isNil.
+	self assert: window selectedProtocolName isNil.
+	self assert: window selectedSelector isNil
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testBrowserWindowSelectClassNameClearsSelectorAndProtocol [
+	| window |
+	window := application newAuxiliaryWindowForKind: #browser.
+	window selectedProtocolName: 'accessing'.
+	window selectedSelector: 'printString'.
+
+	window selectedClassName: 'OrderedCollection'.
+
+	self assert: window selectedClassName equals: 'OrderedCollection'.
+	self assert: window selectedProtocolName isNil.
+	self assert: window selectedSelector isNil
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testAdditionalBrowserWindowKeepsIndependentSelection [
+	| window |
+	window := application newAuxiliaryWindowForKind: #browser.
+
+	application selectBrowserClassNamed: 'Object' forWindow: window.
+
+	self assert: application selectedBrowserClassName isNil.
+	self assert: (application browserClassNameForWindow: window) equals: 'Object'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testInspectorWindowsAreCappedAtMaximum [
+	1 to: application maximumInspectorWindows + 3 do: [ :i |
+		application newInspectorWindowForText: i printString label: 'Label ', i printString ].
+
+	self assert: application inspectorWindows size equals: application maximumInspectorWindows
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testNewInspectorWindowIsSigInspectorWindow [
+	| window |
+	window := application newInspectorWindowForText: 'hello' label: 'Test'.
+
+	self assert: (window isKindOf: SigInspectorWindow).
+	self assert: window label equals: 'Test'.
+	self assert: window text equals: 'hello'.
+	self assert: window windowId equals: 'sig-window-object-1'
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testNewInspectorWindowForObjectIsSigInspectorWindow [
+	| window |
+	window := application
+		newInspectorWindowForObject: #(1 2)
+		label: 'Items'
+		title: 'My Array'.
+
+	self assert: (window isKindOf: SigInspectorWindow).
+	self assert: window title equals: 'My Array'.
+	self assert: window label equals: 'Items'.
+	self assert: window rows size equals: 2
 ]

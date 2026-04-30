@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(screencapture -x /tmp/sig-current-ui.png)",
+      "Bash(screencapture /tmp/sig-current-ui.png)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(bash -c 'cd \"/Users/tariq/Documents/Pharo/images/Pharo 13.0 - clean\" && \"/Users/tariq/Documents/Pharo/vms/130-x64/Pharo.app/Contents/MacOS/Pharo\" \"/Users/tariq/Documents/Pharo/images/Pharo 13.0 - clean/Pharo 13.0 - clean.image\"')",
+      "Bash(screencapture /tmp/pharo-ui.png)",
+      "Bash(screencapture /tmp/pharo-ui2.png)",
+      "Bash(osascript -e 'tell application \"Pharo\" to activate')",
+      "Bash(screencapture /tmp/pharo-focused.png)",
+      "Bash(osascript -e ' *)",
+      "Bash(screencapture /tmp/pharo-browser.png)",
+      "Bash(screencapture /tmp/pharo-now.png)",
+      "Bash(git *)",
+      "Bash(pharo --no-default-preferences Pharo.image eval --save ' *)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo Pharo.image eval ' *)",
+      "Bash(grep -v \"^$\\\\|Warning\\\\|Info\\\\|Deprecat\\\\|PrimitiveFail\\\\|does not understand\\\\|signal\\\\|Error\\\\|loading\\\\|Resolving\")",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image eval ' *)",
+      "Bash(grep -v \"^$\\\\|Loading\\\\|Resolv\\\\|deprecat\")",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st /tmp/run-sig-tests.st)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image --help)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image --list)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image test --help)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st /tmp/run-sig-tests.st --save)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st --quit /tmp/run-sig-tests.st)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st --help)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st /tmp/run-sig-tests.st --quit)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image st /tmp/load-project.st --save)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image test --fail-on-failure \"SeasideInGemStone-Tests\")",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image perform --receiver=Smalltalk --selector=logError: --argument=\"hello\")",
+      "Bash(kill 39050 39048 45435)",
+      "Bash(bash /tmp/load-and-test.sh)",
+      "Bash(awk '{print $2}')",
+      "Bash(kill 48172)",
+      "Bash(/Users/tariq/src/pharo-vm/Pharo.app/Contents/MacOS/Pharo --headless Pharo.image test \"SeasideInGemStone-Tests\")",
+      "Bash(kill 59241 49964)",
+      "Bash(grep -v \"^$\")"
+    ]
+  }
+}
