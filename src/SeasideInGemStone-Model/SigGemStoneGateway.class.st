@@ -293,12 +293,16 @@ SigGemStoneGateway >> displayStringFor: anObject [
 { #category : 'querying' }
 SigGemStoneGateway >> inspectionRowsFor: anObject [
 	| rows limit index |
+	rows := OrderedCollection new.
+	rows add: (self inspectionRowKey: 'self' value: anObject).
+	anObject isBehavior ifTrue: [
+		^ self inspectionRowsForBehavior: anObject ].
 	(anObject isKindOf: Association) ifTrue: [
-		^ {
+		rows addAll: {
 			self inspectionRowKey: 'key' value: anObject key.
-			self inspectionRowKey: 'value' value: anObject value } ].
+			self inspectionRowKey: 'value' value: anObject value }.
+		^ rows asArray ].
 	(anObject isKindOf: Dictionary) ifTrue: [
-		rows := OrderedCollection new.
 		limit := 50.
 		index := 0.
 		anObject associationsDo: [ :each |
@@ -307,7 +311,6 @@ SigGemStoneGateway >> inspectionRowsFor: anObject [
 				rows add: (self inspectionRowKey: each key value: each value) ] ].
 		^ rows asArray ].
 	((anObject isKindOf: Collection) and: [ (anObject isKindOf: String) not ]) ifTrue: [
-		rows := OrderedCollection new.
 		limit := 50.
 		index := 0.
 		anObject do: [ :each |
@@ -315,13 +318,66 @@ SigGemStoneGateway >> inspectionRowsFor: anObject [
 			index <= limit ifTrue: [
 				rows add: (self inspectionRowKey: index printString value: each) ] ].
 		^ rows asArray ].
-	rows := OrderedCollection new.
 	[ anObject class allInstVarNames withIndexDo: [ :each :instVarIndex |
 		rows add: (self inspectionRowKey: each asString value: (anObject instVarAt: instVarIndex)) ] ]
 		on: Error
-		do: [ :ex | rows := OrderedCollection new ].
-	rows isEmpty ifTrue: [ ^ self inspectionSummaryRowsFor: anObject ].
+		do: [ :ex | rows := OrderedCollection with: (self inspectionRowKey: 'self' value: anObject) ].
+	rows size = 1 ifTrue: [
+		rows addAll: (self inspectionSummaryRowsFor: anObject) ].
 	^ rows asArray
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionRowsForBehavior: aBehavior [
+	| rows |
+	rows := OrderedCollection new.
+	rows add: (self inspectionRowKey: 'self' value: aBehavior).
+	self
+		inspectionRowsForObjectSlots: aBehavior
+		into: rows.
+	self
+		inspectionRowsForClassVariablesOf: aBehavior
+		into: rows.
+	^ rows asArray
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> inspectionRowsForClassVariablesOf: aBehavior into: rows [
+	self
+		inspectionRowsSafelyAdd: 'instance variable names'
+		value: [ aBehavior instVarNames ]
+		into: rows.
+	self
+		inspectionRowsSafelyAdd: 'all instance variable names'
+		value: [ aBehavior allInstVarNames ]
+		into: rows.
+	self
+		inspectionRowsSafelyAdd: 'class variable names'
+		value: [ aBehavior classVarNames ]
+		into: rows.
+	self
+		inspectionRowsSafelyAdd: 'class instance variable names'
+		value: [ aBehavior class instVarNames ]
+		into: rows.
+	self
+		inspectionRowsSafelyAdd: 'shared pools'
+		value: [ aBehavior sharedPools ]
+		into: rows
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> inspectionRowsForObjectSlots: anObject into: rows [
+	[ anObject class allInstVarNames withIndexDo: [ :each :instVarIndex |
+		rows add: (self inspectionRowKey: each asString value: (anObject instVarAt: instVarIndex)) ] ]
+		on: Error
+		do: [ :ex | nil ]
+]
+
+{ #category : 'private' }
+SigGemStoneGateway >> inspectionRowsSafelyAdd: aKey value: aBlock into: rows [
+	| value |
+	value := [ aBlock value ] on: Error do: [ :ex | ^ self ].
+	rows add: (self inspectionRowKey: aKey value: value)
 ]
 
 { #category : 'private' }
@@ -349,9 +405,25 @@ SigGemStoneGateway >> inspectionSnapshotFor: anObject [
 		at: #rowsTitle put: (self inspectionRowsTitleFor: anObject);
 		at: #rows put: (self inspectionRowsFor: anObject);
 		at: #printString put: (self longDisplayStringFor: anObject);
-		at: #className put: ([ anObject class name asString ] on: Error do: [ '' ]);
+		at: #className put: (self inspectionClassNameFor: anObject);
 		at: #displayString put: (self displayStringFor: anObject);
 		yourself
+]
+
+{ #category : 'querying' }
+SigGemStoneGateway >> inspectionClassNameFor: anObject [
+	| className |
+	className := [
+		| objectClass |
+		objectClass := anObject class.
+		[ objectClass name asString ]
+			on: Error
+			do: [ objectClass asString ] ]
+		on: Error
+		do: [ '' ].
+	(className isNil or: [ className isEmpty ]) ifTrue: [
+		className := [ anObject class asString ] on: Error do: [ '' ] ].
+	^ className ifNil: [ '' ]
 ]
 
 { #category : 'querying' }
@@ -1734,9 +1806,12 @@ SigGemStoneGateway >> stackFramesForProcess: aProcess toLevel: aLevel [
 			method := frame at: 1.
 			method ifNotNil: [
 				record := self stackFrameRecordFor: frame method: method number: processLevel.
-				detailedReport := [ aProcess _gsiDebuggerDetailedReportAt: processLevel ]
-					on: Error
-					do: [ nil ].
+				detailedReport := (record at: #isInfrastructure ifAbsent: [ false ])
+					ifTrue: [ nil ]
+					ifFalse: [
+						[ aProcess _gsiDebuggerDetailedReportAt: processLevel ]
+							on: Error
+							do: [ nil ] ].
 				frames add: (self
 					updateStackFrameRecord: record
 					fromDetailedReport: detailedReport
@@ -1925,7 +2000,7 @@ SigGemStoneGateway >> waitForDebugProcessToStop: aProcess [
 		(([ aProcess isTerminated ] on: Error do: [ true ])
 			or: [ [ aProcess isSuspended ] on: Error do: [ false ] ])
 			or: [ Time millisecondClockValue >= deadline ] ]
-		whileFalse: [ (Delay forMilliseconds: 5) wait ]
+		whileFalse: [ (Delay forMilliseconds: 1) wait ]
 ]
 
 { #category : 'private' }
@@ -1935,13 +2010,12 @@ SigGemStoneGateway >> waitForDebugProcessToTerminate: aProcess [
 	[
 		([ aProcess isTerminated ] on: Error do: [ true ])
 			or: [ Time millisecondClockValue >= deadline ] ]
-		whileFalse: [ (Delay forMilliseconds: 5) wait ].
+		whileFalse: [ (Delay forMilliseconds: 1) wait ].
 	^ [ aProcess isTerminated ] on: Error do: [ true ]
 ]
 
 { #category : 'private' }
 SigGemStoneGateway >> waitForDebugProcessToStopAfterResume: aProcess [
-	(Delay forMilliseconds: 5) wait.
 	^ self waitForDebugProcessToStop: aProcess
 ]
 

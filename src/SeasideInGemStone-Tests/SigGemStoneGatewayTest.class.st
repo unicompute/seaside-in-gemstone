@@ -74,6 +74,17 @@ SigGemStoneGatewayTest >> testConnectionSummaryDescribesCurrentSession [
 ]
 
 { #category : 'tests' }
+SigGemStoneGatewayTest >> testSmallDateAndTimeTruncatedDropsFractionalSeconds [
+	| now truncated |
+	now := DateAndTime now.
+	truncated := now truncated.
+
+	self assert: truncated class equals: now class.
+	self assert: truncated offset equals: now offset.
+	self assert: truncated asSeconds equals: now asSeconds truncated
+]
+
+{ #category : 'tests' }
 SigGemStoneGatewayTest >> testStepIntoPrefersStepIntoSelectorsOverPlainStep [
 	| process session snapshot |
 	process := SigDebugProcessMock new.
@@ -866,9 +877,10 @@ SigGemStoneGatewayTest >> testInspectionRowsCarryInspectableObjects [
 	| rows |
 	rows := gateway inspectionRowsFor: #(1 2 3).
 
-	self assert: rows size equals: 3.
+	self assert: rows size equals: 4.
 	self assert: (rows first includesKey: #object).
-	self assert: (rows first at: #object) equals: 1
+	self assert: (rows first at: #key) equals: 'self'.
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: '1')
 ]
 
 { #category : 'tests' }
@@ -877,7 +889,12 @@ SigGemStoneGatewayTest >> testInspectionRowsForClassFallbackToSummaryRows [
 	rows := gateway inspectionRowsFor: Object.
 
 	self assert: rows isEmpty not.
-	self assert: (rows first at: #key) equals: 'Name'.
+	self assert: (rows first at: #key) equals: 'self'.
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'superClass').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'instVarNames').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'classVars').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'instance variable names').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'class variable names').
 	self assert: (rows first includesKey: #object)
 ]
 

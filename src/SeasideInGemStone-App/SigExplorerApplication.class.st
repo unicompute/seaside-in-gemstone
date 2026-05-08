@@ -21,6 +21,7 @@ Class {
 		'inspectorLabel',
 		'inspectorText',
 		'pendingWindowIdToShow',
+		'pendingWindowIdToHide',
 		'debuggerWindows',
 		'nextDebuggerWindowNumber',
 		'inspectorWindows',
@@ -453,10 +454,14 @@ SigExplorerApplication >> debuggerFrameSourceMetaTextFor: aFrame position: frame
 
 { #category : 'private' }
 SigExplorerApplication >> debuggerFrameSourceCursorLocationFor: aFrame [
-	| currentStep |
+	| currentStep initialSelectorLocation |
 	(self debuggerFrameIsExecutedCode: aFrame) ifFalse: [
 		^ self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: (aFrame at: #quickStepPoint ifAbsent: [ nil ]) ].
 	currentStep := aFrame at: #quickStepPoint ifAbsent: [ nil ].
+	currentStep := [ currentStep asInteger ] on: Error do: [ nil ].
+	currentStep = 1 ifTrue: [
+		initialSelectorLocation := self debuggerInitialMessageSelectorCursorLocationFor: aFrame.
+		initialSelectorLocation ifNotNil: [ ^ initialSelectorLocation ] ].
 	^ self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: currentStep
 ]
 
@@ -570,8 +575,209 @@ SigExplorerApplication >> debuggerExecutableCursorColumnForLine: aString [
 				[ index <= size and: [ (lineText at: index) ~= $" ] ] whileTrue: [
 					index := index + 1 ].
 				index <= size ifTrue: [ index := index + 1 ] ]
-			ifFalse: [ ^ index ] ].
+				ifFalse: [ ^ index ] ].
 	^ nil
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerFirstMessageSelectorColumnForLine: aString [
+	^ self
+		debuggerFirstMessageSelectorColumnIn: (aString ifNil: [ '' ])
+		startingAt: 1
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerFirstMessageSelectorColumnIn: lineText startingAt: startIndex [
+	| afterReceiver index size |
+	size := lineText size.
+	index := self debuggerSkipSeparatorsAndCommentsIn: lineText startingAt: startIndex.
+	index > size ifTrue: [ ^ nil ].
+	(lineText at: index) = $^ ifTrue: [
+		^ self
+			debuggerFirstMessageSelectorColumnIn: lineText
+			startingAt: index + 1 ].
+	(lineText at: index) = $| ifTrue: [
+		index := index + 1.
+		[ index <= size and: [ (lineText at: index) ~= $| ] ] whileTrue: [
+			index := index + 1 ].
+		index <= size ifFalse: [ ^ nil ].
+		^ self
+			debuggerFirstMessageSelectorColumnIn: lineText
+			startingAt: index + 1 ].
+	afterReceiver := self debuggerIndexAfterSourceTokenIn: lineText startingAt: index.
+	afterReceiver ifNil: [ ^ nil ].
+	index := self debuggerSkipSeparatorsAndCommentsIn: lineText startingAt: afterReceiver.
+	index > size ifTrue: [ ^ nil ].
+	(index < size and: [ (lineText at: index) = $: and: [ (lineText at: index + 1) = $= ] ]) ifTrue: [
+		^ self
+			debuggerFirstMessageSelectorColumnIn: lineText
+			startingAt: index + 2 ].
+	(lineText at: index) = $_ ifTrue: [
+		^ self
+			debuggerFirstMessageSelectorColumnIn: lineText
+			startingAt: index + 1 ].
+	(index < size and: [ (lineText at: index) = $< and: [ (lineText at: index + 1) = $- ] ]) ifTrue: [
+		^ self
+			debuggerFirstMessageSelectorColumnIn: lineText
+			startingAt: index + 2 ].
+	^ (self debuggerCharacterBeginsMessageSelector: (lineText at: index))
+		ifTrue: [ index ]
+		ifFalse: [ nil ]
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerCharacterBeginsMessageSelector: aCharacter [
+	(self debuggerCharacterIsIdentifierStart: aCharacter) ifTrue: [ ^ true ].
+	^ '~!@%&*-+=|\<>,?/' includes: aCharacter
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerCharacterIsDigit: aCharacter [
+	^ aCharacter between: $0 and: $9
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerCharacterIsIdentifierPart: aCharacter [
+	^ (aCharacter between: $a and: $z)
+		or: [ (aCharacter between: $A and: $Z)
+		or: [ (aCharacter between: $0 and: $9)
+		or: [ aCharacter = $_ ] ] ]
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerCharacterIsIdentifierStart: aCharacter [
+	^ (aCharacter between: $a and: $z)
+		or: [ (aCharacter between: $A and: $Z)
+		or: [ aCharacter = $_ ] ]
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerIndexAfterBalancedTokenIn: lineText startingAt: startIndex closingWith: closeCharacter [
+	| character depth index openCharacter size |
+	size := lineText size.
+	index := startIndex.
+	index > size ifTrue: [ ^ nil ].
+	openCharacter := lineText at: index.
+	depth := 0.
+	[ index <= size ] whileTrue: [
+		character := lineText at: index.
+		character = $' ifTrue: [
+			index := self debuggerIndexAfterStringLiteralIn: lineText startingAt: index ]
+		ifFalse: [
+			character = $" ifTrue: [
+				index := self debuggerSkipSeparatorsAndCommentsIn: lineText startingAt: index ]
+			ifFalse: [
+				character = openCharacter ifTrue: [ depth := depth + 1 ].
+				character = closeCharacter ifTrue: [
+					depth := depth - 1.
+					depth = 0 ifTrue: [ ^ index + 1 ] ].
+				index := index + 1 ] ] ].
+	^ size + 1
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerIndexAfterSourceTokenIn: lineText startingAt: startIndex [
+	| character index nextCharacter size |
+	size := lineText size.
+	index := startIndex.
+	index > size ifTrue: [ ^ nil ].
+	character := lineText at: index.
+	character = $' ifTrue: [
+		^ self debuggerIndexAfterStringLiteralIn: lineText startingAt: index ].
+	character = $( ifTrue: [
+		^ self debuggerIndexAfterBalancedTokenIn: lineText startingAt: index closingWith: $) ].
+	character = $[ ifTrue: [
+		^ self debuggerIndexAfterBalancedTokenIn: lineText startingAt: index closingWith: $] ].
+	character = ${ ifTrue: [
+		^ self debuggerIndexAfterBalancedTokenIn: lineText startingAt: index closingWith: $} ].
+	character = $$ ifTrue: [
+		^ (index + 2) min: size + 1 ].
+	character = $# ifTrue: [
+		index = size ifTrue: [ ^ size + 1 ].
+		nextCharacter := lineText at: index + 1.
+		nextCharacter = $( ifTrue: [
+			^ self debuggerIndexAfterBalancedTokenIn: lineText startingAt: index + 1 closingWith: $) ].
+		nextCharacter = $[ ifTrue: [
+			^ self debuggerIndexAfterBalancedTokenIn: lineText startingAt: index + 1 closingWith: $] ].
+		nextCharacter = $' ifTrue: [
+			^ self debuggerIndexAfterStringLiteralIn: lineText startingAt: index + 1 ].
+		(self debuggerCharacterIsIdentifierPart: nextCharacter) ifTrue: [
+			index := index + 2.
+			[ index <= size and: [
+				(self debuggerCharacterIsIdentifierPart: (lineText at: index))
+					or: [ (lineText at: index) = $: ] ] ] whileTrue: [
+				index := index + 1 ].
+			^ index ].
+		(self debuggerCharacterBeginsMessageSelector: nextCharacter) ifTrue: [
+			index := index + 2.
+			[ index <= size and: [
+				self debuggerCharacterBeginsMessageSelector: (lineText at: index) ] ] whileTrue: [
+				index := index + 1 ].
+			^ index ].
+		^ index + 1 ].
+	(character = $- and: [ index < size and: [ self debuggerCharacterIsDigit: (lineText at: index + 1) ] ])
+		ifTrue: [ index := index + 1 ].
+	(self debuggerCharacterIsDigit: (lineText at: index)) ifTrue: [
+		index := index + 1.
+		[ index <= size and: [
+			(self debuggerCharacterIsIdentifierPart: (lineText at: index))
+				or: [ (lineText at: index) = $. ] ] ] whileTrue: [
+			index := index + 1 ].
+		^ index ].
+	(self debuggerCharacterIsIdentifierPart: character) ifTrue: [
+		[ index <= size and: [
+			self debuggerCharacterIsIdentifierPart: (lineText at: index) ] ] whileTrue: [
+			index := index + 1 ].
+		^ index ].
+	^ index + 1
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerIndexAfterStringLiteralIn: lineText startingAt: startIndex [
+	| index size |
+	size := lineText size.
+	index := startIndex + 1.
+	[ index <= size ] whileTrue: [
+		(lineText at: index) = $' ifTrue: [
+			(index < size and: [ (lineText at: index + 1) = $' ])
+				ifTrue: [ index := index + 2 ]
+				ifFalse: [ ^ index + 1 ] ]
+		ifFalse: [ index := index + 1 ] ].
+	^ size + 1
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerInitialMessageSelectorCursorLocationFor: aFrame [
+	| firstLocation lineNumber lines selectorColumn sourceText |
+	firstLocation := self debuggerFrameSourceCursorLocationFor: aFrame stepPoint: 1.
+	firstLocation ifNil: [ ^ nil ].
+	sourceText := aFrame at: #sourceText ifAbsent: [ nil ].
+	lines := self debuggerSourceLinesFor: sourceText.
+	lines isEmpty ifTrue: [ ^ nil ].
+	lineNumber := self
+		debuggerExecutableLineNumberNear: firstLocation first
+		inLines: lines.
+	lineNumber ifNil: [ lineNumber := firstLocation first ].
+	(lineNumber between: 1 and: lines size) ifFalse: [ ^ nil ].
+	selectorColumn := self debuggerFirstMessageSelectorColumnForLine: (lines at: lineNumber).
+	selectorColumn ifNil: [ ^ nil ].
+	^ { lineNumber. selectorColumn }
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> debuggerSkipSeparatorsAndCommentsIn: lineText startingAt: startIndex [
+	| index size |
+	size := lineText size.
+	index := startIndex max: 1.
+	[
+		[ index <= size and: [ (lineText at: index) isSeparator ] ] whileTrue: [
+			index := index + 1 ].
+		index <= size and: [ (lineText at: index) = $" ] ] whileTrue: [
+		index := index + 1.
+		[ index <= size and: [ (lineText at: index) ~= $" ] ] whileTrue: [
+			index := index + 1 ].
+		index <= size ifTrue: [ index := index + 1 ] ].
+	^ index
 ]
 
 { #category : 'private' }
@@ -849,6 +1055,7 @@ SigExplorerApplication >> closeAllTransientWindows [
 	inspectorWindows := OrderedCollection new.
 	debuggerWindows := OrderedCollection new.
 	pendingWindowIdToShow := nil.
+	pendingWindowIdToHide := nil.
 	self setStatusMessage: 'Closed all windows'
 ]
 
@@ -1017,7 +1224,7 @@ SigExplorerApplication >> inspectorWindowPositionForIndex: anInteger [
 	offset := (anInteger - 1) \\ 6.
 	top := 6 + (offset * 1.5).
 	left := 46 + (offset * 1.5).
-	^ 'top: ', top printString, 'rem; left: ', left printString, 'rem; width: 26rem; height: 22rem;'
+	^ 'top: ', top printString, 'rem; left: ', left printString, 'rem; width: 42rem; height: 28rem;'
 ]
 
 { #category : 'private' }
@@ -1171,6 +1378,8 @@ SigExplorerApplication >> newInspectorWindowForSnapshot: anInspection label: aLa
 	self pruneOldInspectorWindows.
 	windowNumber := nextInspectorWindowNumber := nextInspectorWindowNumber + 1.
 	windowTitle := aTitle ifNil: [ self inspectorWindowTitleForWindowNumber: windowNumber ].
+	inspectorLabel := aLabel.
+	inspectorText := anInspection at: #printString ifAbsent: [ '' ].
 	window := SigInspectorWindow
 		id: 'sig-window-object-', windowNumber printString
 		title: windowTitle
@@ -1320,8 +1529,29 @@ SigExplorerApplication >> performDebuggerAction: anActionSymbol inState: aState 
 		ifTrue: [ self selectPreferredDebuggerFrameInState: aState ].
 	aState == self debuggerState ifFalse: [
 		self synchronizeBaseDebuggerStateFrom: aState ].
+	anActionSymbol = #terminate ifTrue: [
+		self closeDebuggerWindowForState: aState ].
 	self setStatusMessage: (self debuggerSessionStatusTextForState: aState).
 	self addTranscriptLine: 'Debugger ', anActionSymbol asString, ': ', (self transcriptPreviewOf: (self debuggerSessionStatusTextForState: aState))
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> closeDebuggerWindowForState: aState [
+	| windowId |
+	windowId := aState at: #id ifAbsent: [ 'sig-window-debugger' ].
+	debuggerWindows remove: aState ifAbsent: [].
+	self resetBaseDebuggerStateAfterTerminate.
+	self requestWindowHide: windowId
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> resetBaseDebuggerStateAfterTerminate [
+	debuggerSnapshotText := nil.
+	debuggerState := self
+		newDebuggerStateWithWalkback: 'No debugger snapshot captured yet.'
+		errorText: 'No gateway errors recorded.'
+		gatewayWalkback: 'No gateway walkback recorded.'
+		frames: #()
 ]
 
 { #category : 'private' }
@@ -1615,6 +1845,7 @@ SigExplorerApplication >> desktopScript [
     return null;
   }
 
+
   function replaceFragmentFromDocument(selector, sourceDocument) {
     var current = document.querySelector(selector);
     var replacement = sourceDocument.querySelector(selector);
@@ -1657,7 +1888,11 @@ SigExplorerApplication >> desktopScript [
     }
     runtime.dragState = null;
     document.body.classList.remove(''sig-dragging'');
-    if (autoShowWindowId) {
+    var desktop = document.getElementById(''sig-desktop'');
+    var autoHideWindowId = desktop && desktop.getAttribute(''data-sig-auto-hide-window'');
+    if (autoHideWindowId) {
+      window.SIGAutoHideWindow = autoHideWindowId;
+    } else if (autoShowWindowId) {
       window.SIGAutoShowWindow = autoShowWindowId;
     }
     boot();
@@ -2392,7 +2627,11 @@ SigExplorerApplication >> desktopScript [
       });
     }
     syncTaskbarButtons();
-    if (window.SIGAutoShowWindow) {
+    if (window.SIGAutoHideWindow) {
+      var hideTarget = document.getElementById(window.SIGAutoHideWindow);
+      if (hideTarget) hideWindow(hideTarget);
+      window.SIGAutoHideWindow = null;
+    } else if (window.SIGAutoShowWindow) {
       showWindow(window.SIGAutoShowWindow);
       window.SIGAutoShowWindow = null;
     } else if (runtime.newlyVisibleWindowIds && runtime.newlyVisibleWindowIds.length) {
@@ -2466,6 +2705,7 @@ SigExplorerApplication >> initialize [
 	workspaceResultText := ''.
 	transcriptEntries := OrderedCollection new.
 	pendingWindowIdToShow := nil.
+	pendingWindowIdToHide := nil.
 	debuggerWindows := OrderedCollection new.
 	nextDebuggerWindowNumber := 0.
 	inspectorWindows := OrderedCollection new.
@@ -2651,7 +2891,9 @@ SigExplorerApplication >> renderContentOn: html [
 	html div
 		id: 'sig-desktop';
 		class: 'sig-desktop';
+		attributeAt: 'data-sig-auto-hide-window' put: (pendingWindowIdToHide ifNil: [ '' ]);
 		with: [ :desktop |
+		pendingWindowIdToHide := nil.
 			self renderGemStoneLogoOn: desktop.
 			self
 				renderFloatingWindowOn: desktop
@@ -3319,7 +3561,7 @@ SigExplorerApplication >> baseDebuggerWindowPosition [
 { #category : 'private' }
 SigExplorerApplication >> baseInspectorWindowPosition [
 	| defaultPosition |
-	defaultPosition := 'top: 18rem; left: 48rem; width: 28rem; height: 23rem;'.
+	defaultPosition := 'top: 14rem; left: 42rem; width: 42rem; height: 28rem;'.
 	(pendingWindowIdToShow = 'sig-window-inspector') ifTrue: [ ^ defaultPosition ].
 	inspectorLabel = 'Nothing selected' ifFalse: [ ^ defaultPosition ].
 	^ self hiddenWindowPosition: defaultPosition
@@ -3484,6 +3726,8 @@ SigExplorerApplication >> renderSelectedEntryOn: html [
 
 { #category : 'rendering' }
 SigExplorerApplication >> renderInspectorOn: html [
+	inspectorWindows isEmpty ifFalse: [
+		^ self renderInspectorWindowOn: html window: inspectorWindows last ].
 	self
 		renderInspectorContentsOn: html
 		label: inspectorLabel
@@ -4056,6 +4300,11 @@ SigExplorerApplication >> requestExceptionDebuggerForLastError [
 { #category : 'private' }
 SigExplorerApplication >> requestWindowShow: aWindowId [
 	pendingWindowIdToShow := aWindowId
+]
+
+{ #category : 'private' }
+SigExplorerApplication >> requestWindowHide: aWindowId [
+	pendingWindowIdToHide := aWindowId
 ]
 
 { #category : 'private' }
@@ -6663,7 +6912,7 @@ SigExplorerApplication >> updateRoot: anHtmlRoot [
 	windowId := self consumePendingWindowIdToShow.
 	windowId ifNotNil: [
 		anHtmlRoot bodyAttributes at: 'data-sig-auto-show-window' put: windowId.
-		anHtmlRoot addScript: 'window.SIGAutoShowWindow = ', windowId printString, ';' ]
+		anHtmlRoot addScript: 'window.SIGAutoShowWindow = ', windowId printString, ';' ].
 ]
 
 { #category : 'actions' }
@@ -6766,11 +7015,11 @@ SigExplorerApplication >> workspaceInspectItForWindow: aWindow [
 			self setStatusMessage: 'Workspace inspect failed' ]
 		ifFalse: [ self setStatusMessage: 'Workspace inspect completed' ].
 	hadFailure ifFalse: [
-		window := self
-			newInspectorWindowForSnapshot: snapshot
-			label: 'Workspace result'
-			title: 'Workspace result'.
-		self requestWindowShow: window windowId ].
+			window := self
+				newInspectorWindowForSnapshot: snapshot
+				label: 'Workspace result'
+				title: 'Workspace result'.
+			self requestWindowShow: 'sig-window-inspector' ].
 	self
 		addTranscriptLine: 'Workspace inspect output: ',
 			(self transcriptPreviewOf: (self workspaceResultTextForWindow: aWindow))

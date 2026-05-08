@@ -151,10 +151,10 @@ SigExplorerApplicationTest >> testNewInspectorWindowForObjectBuildsStructuredRow
 	self assert: (window at: #title) equals: 'Numbers'.
 	self assert: (window at: #taskbarLabel) equals: 'Numbers'.
 	self assert: (window at: #rowsTitle) equals: 'Indexes'.
-	self assert: rows size equals: 3.
+	self assert: rows size equals: 4.
 	self assert: (rows first includesKey: #object).
-	self assert: (rows first at: #key) equals: '1'.
-	self assert: (rows first at: #value) equals: '1'
+	self assert: (rows first at: #key) equals: 'self'.
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: '1')
 ]
 
 { #category : 'tests' }
@@ -168,7 +168,12 @@ SigExplorerApplicationTest >> testNewInspectorWindowForClassBuildsStructuredSumm
 
 	self assert: (window at: #rowsTitle) equals: 'Class Details'.
 	self assert: rows isEmpty not.
-	self assert: (rows first at: #key) equals: 'Name'.
+	self assert: (rows first at: #key) equals: 'self'.
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'superClass').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'instVarNames').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'classVars').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'instance variable names').
+	self assert: ((rows collect: [ :each | each at: #key ]) includes: 'class variable names').
 	self assert: (rows first includesKey: #object)
 ]
 
@@ -355,7 +360,8 @@ SigExplorerApplicationTest >> testWorkspaceInspectItShowsInspectorWindow [
 	self assert: window label equals: 'Workspace result'.
 	self assert: window className equals: 'SmallInteger'.
 	self assert: window rows isEmpty not.
-	self assert: application consumePendingWindowIdToShow equals: window windowId
+	self assert: application inspectorLabel equals: 'Workspace result'.
+	self assert: application consumePendingWindowIdToShow equals: 'sig-window-inspector'
 ]
 
 { #category : 'tests' }
@@ -364,7 +370,7 @@ SigExplorerApplicationTest >> testBaseInspectorWindowPositionIsVisibleWhenReques
 
 	self
 		assert: application baseInspectorWindowPosition
-		equals: 'top: 18rem; left: 48rem; width: 28rem; height: 23rem;'
+		equals: 'top: 14rem; left: 42rem; width: 42rem; height: 28rem;'
 ]
 
 { #category : 'tests' }
@@ -527,6 +533,15 @@ SigExplorerApplicationTest >> testDebuggerDefaultCursorColumnUsesFirstVisibleCha
 ]
 
 { #category : 'tests' }
+SigExplorerApplicationTest >> testDebuggerFirstMessageSelectorColumnForLine [
+	self assert: (application debuggerFirstMessageSelectorColumnForLine: '1 + 2.') equals: 3.
+	self assert: (application debuggerFirstMessageSelectorColumnForLine: '1+1. 4*4.') equals: 2.
+	self assert: (application debuggerFirstMessageSelectorColumnForLine: 'answer := 1 + 2') equals: 13.
+	self assert: (application debuggerFirstMessageSelectorColumnForLine: '   "comment" 1/0') equals: 15.
+	self assert: (application debuggerFirstMessageSelectorColumnForLine: '42') equals: nil
+]
+
+{ #category : 'tests' }
 SigExplorerApplicationTest >> testDebuggerSourceLineNumberKeepsCommentsAndBlankLinesButHighlightsExecutableStep [
 	| frame |
 	frame := Dictionary new
@@ -601,7 +616,7 @@ SigExplorerApplicationTest >> testDebuggerExecutedCodeKeepsCurrentStepOffsetWhen
 ]
 
 { #category : 'tests' }
-SigExplorerApplicationTest >> testDebuggerExecutedCodeInitialStepStaysAtSourceStart [
+SigExplorerApplicationTest >> testDebuggerExecutedCodeInitialStepStartsBeforeFirstMessageSelector [
 	| frame |
 	frame := Dictionary new
 		at: #className put: 'SigWorkspaceEvaluator';
@@ -612,8 +627,8 @@ SigExplorerApplicationTest >> testDebuggerExecutedCodeInitialStepStaysAtSourceSt
 		at: #sourceText put: '1 + 2.', String lf, '3 + 4';
 		yourself.
 
-	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 1).
-	self assert: (application debuggerResolvedSourceLocationFor: frame) equals: #(1 1).
+	self assert: (application debuggerFrameSourceCursorLocationFor: frame) equals: #(1 3).
+	self assert: (application debuggerResolvedSourceLocationFor: frame) equals: #(1 3).
 	self assert: (application debuggerFrameExecutedCodeLabelFor: frame) equals: 'Executed code @1 line 1'
 ]
 
@@ -915,6 +930,40 @@ SigExplorerApplicationTest >> testSynchronizeBaseDebuggerStateFromCopiesLiveDebu
 	self assert: (application debuggerState at: #canStepOver).
 	self assert: (application debuggerState at: #showBridgeFrames).
 	self assert: (application debuggerState at: #selectedFrameLevel) equals: 3
+]
+
+{ #category : 'tests' }
+SigExplorerApplicationTest >> testCloseBaseDebuggerWindowResetsVisibleDebuggerState [
+	| snapshot |
+	snapshot := Dictionary new
+		at: #walkback put: 'walkback';
+		at: #errorText put: 'ZeroDivide';
+		at: #gatewayWalkback put: 'gateway walkback';
+		at: #frames put: {
+			(Dictionary new
+				at: #level put: 1;
+				at: #description put: 'Executed code @1 line 1';
+				at: #text put: 'frame text';
+				yourself) };
+		at: #debugSessionId put: 23;
+		at: #isLiveSession put: true;
+		at: #sessionStatusText put: 'Debug process suspended.';
+		at: #canProceed put: true;
+		at: #canRestart put: true;
+		at: #canStepInto put: true;
+		at: #canStepOver put: true;
+		at: #canStepOut put: true;
+		at: #canTerminate put: true;
+		yourself.
+	application applyDebuggerSnapshot: snapshot toState: application debuggerState.
+
+	self deny: (application baseDebuggerWindowPosition includesString: 'display: none;').
+
+	application closeDebuggerWindowForState: application debuggerState.
+
+	self assert: (application baseDebuggerWindowPosition includesString: 'display: none;').
+	self assert: (application debuggerState at: #debugSessionId) isNil.
+	self deny: (application debuggerState at: #canTerminate)
 ]
 
 { #category : 'tests' }
